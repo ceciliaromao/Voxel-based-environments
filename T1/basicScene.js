@@ -8,6 +8,7 @@ import {initRenderer,
         onWindowResize,
         createGroundPlaneXZ} from "../libs/util/util.js";
 import KeyboardState from '../libs/util/KeyboardState.js';
+import GUI from '../libs/util/dat.gui.module.js'
 import Voxel from './voxel.js'
 import { Material } from '../build/three.module.js';
 
@@ -20,7 +21,7 @@ renderer = initRenderer();    // Init a basic renderer
 material = setDefaultMaterial(); // create a basic material
 light = initDefaultBasicLight(scene); // Create a basic light to illuminate the scene
 let myCamera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-myCamera.position.set(75, 75, 75);
+myCamera.position.set(50, 75, 100);
 orbit = new OrbitControls( myCamera, renderer.domElement ); // Enable mouse rotation, pan, zoom etc.
 keyboard = new KeyboardState();
 
@@ -30,13 +31,7 @@ let myVoxel = new Voxel({x: 0, y: 0, z: 0}, myMaterial, true);
 myVoxel.changeSize(1.05);
 myVoxel.place(scene);
 
-
-
-
-
 myVoxel.getObject().add(myCamera);
-
-
 
 // Listen window size changes
 window.addEventListener( 'resize', function(){onWindowResize(myCamera, renderer)}, false );
@@ -45,27 +40,37 @@ window.addEventListener( 'resize', function(){onWindowResize(myCamera, renderer)
 let axesHelper = new THREE.AxesHelper( 12 );
 scene.add( axesHelper );
 
-
-
-for (let i = 0; i < 10; i++){
-  let grid = new THREE.GridHelper(10*VX, VX);
-  grid.translateY(i*VX);
-  //let gridMaterial = setDefaultMaterial();
-  //gridMaterial.opacity = 0.1;
-  if (i !== 0){
-    grid.material.transparent = true;
-    grid.material.opacity = 0.4;
-  }
-  scene.add(grid);
-}
-
-
 let data = {
   x: 10,
   y: 35,
   z: 60
 };
 
+const grid = {
+  array: [], // Array com as camadas do grid
+  opacity: 0.3, // Opacidade das camadas
+  buildGrid: function() // Criação do grid
+  {
+    this.array = []; // Reseta o array (Caso necessário)
+    for (let i = 0; i < 10; i++){
+      let grid = new THREE.GridHelper(10 * VX, VX);
+      grid.translateY(i * VX);
+      if (i !== 0){
+        grid.material.transparent = true;
+        grid.material.opacity = this.opacity;
+      }
+      this.array.push(grid);
+      scene.add(grid);
+    }
+  },
+  updateGrid: function() // Atualiza a opacidade das camadas do grid
+  {
+    this.array.forEach((gridLayer) => {gridLayer.material.opacity = this.opacity})
+  }
+}
+
+grid.buildGrid();
+buildInterface();
 showInformation();
 render();
 
@@ -93,6 +98,16 @@ function showInformation()
   controls.add("Use P para salvar, I para carregar e U para mostrar objeto carregado");
   controls.show();
 }
+
+// Contrói a GUI
+function buildInterface()
+{     
+  let gui = new GUI();
+  let folder = gui.addFolder("Grid");
+    folder.open();
+    folder.add(grid, 'opacity', 0, 1).onChange(function () {grid.updateGrid();});
+}
+
 
 function saveStructure(data, defaultFilename = "data.json"){
   const blob =  new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
