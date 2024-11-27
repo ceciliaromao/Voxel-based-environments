@@ -12,7 +12,8 @@ import KeyboardState from '../libs/util/KeyboardState.js';
 const VX = 10;
 
 export default class Voxel {
-    constructor(pos = {x: 0, y: 0, z: 0}, material = setDefaultMaterial(), wireframe = false){
+    constructor(pos = {x: 0, y: 0, z: 0}, material = setDefaultMaterial(), wireframe = false, worldCoordinates = false){
+        this.wireframe = wireframe;
         this.geometry = new THREE.BoxGeometry(1*VX, 1*VX, 1*VX);
         if (wireframe){ 
             this.geometry = new THREE.WireframeGeometry(this.geometry);
@@ -21,11 +22,19 @@ export default class Voxel {
         } else {
             this.cube = new THREE.Mesh(this.geometry, material);
         }
-        this.cube.position.set(
-            (pos.x)*VX + VX/2, 
-            (pos.y)*VX + VX/2, 
-            (pos.z)*VX + VX/2
-        );
+        if (worldCoordinates) {
+            this.cube.position.set(
+                pos.x, 
+                pos.y, 
+                pos.z
+            );    
+        } else {
+            this.cube.position.set(
+                (pos.x)*VX + VX/2, 
+                (pos.y)*VX + VX/2, 
+                (pos.z)*VX + VX/2
+            );
+        }
     }
 
     changeSize(scale){
@@ -49,26 +58,62 @@ export default class Voxel {
     }
 
     pushOnX(){
-        this.cube.translateX(VX);
+        if (this.wireframe) {
+            if ((this.cube.position.x + VX) < 5 * VX) {
+                this.cube.translateX(VX);        
+            }
+        } else {
+            this.cube.translateX(VX);
+        }
     }
 
     pullOnX(){
-        this.cube.translateX(-VX);
+        if (this.wireframe) { 
+            if ((this.cube.position.x - VX) > -5 * VX) {
+                this.cube.translateX(-VX);
+            }
+        } else {
+            this.cube.translateX(-VX);
+        }
     }
 
     pushOnY(){
-        this.cube.translateY(VX);
+        if (this.wireframe) {
+            if ((this.cube.position.y + VX) < 10 * VX) {
+                this.cube.translateY(VX);        
+            }
+        } else {
+            this.cube.translateY(VX);
+        }
     }
 
     pullOnY(){
-        this.cube.translateY(-VX);
+        if (this.wireframe) {
+            if ((this.cube.position.y - VX) > 0) {
+                this.cube.translateY(-VX);        
+            }
+        } else {
+            this.cube.translateY(-VX);
+        }
     }
 
     pushOnZ(){
-        this.cube.translateZ(VX);
+        if (this.wireframe) {
+            if ((this.cube.position.z + VX) < 5 * VX) {
+                this.cube.translateZ(VX);        
+            }
+        } else {
+            this.cube.translateZ(VX);
+        }
     }
 
     pullOnZ(){
-        this.cube.translateZ(-VX);
+        if (this.wireframe) {
+            if ((this.cube.position.z - VX) > -5 * VX) {
+                this.cube.translateZ(-VX);        
+            }
+        } else {
+            this.cube.translateZ(-VX);
+        }
     }
 }

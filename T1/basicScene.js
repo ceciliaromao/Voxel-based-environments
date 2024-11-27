@@ -10,35 +10,102 @@ import {initRenderer,
 import KeyboardState from '../libs/util/KeyboardState.js';
 import GUI from '../libs/util/dat.gui.module.js'
 import Voxel from './voxel.js'
-import { Material } from '../build/three.module.js';
+import { Material, Vector2, Vector3 } from '../build/three.module.js';
 
 const VX = 10;
 
 let scene, renderer, camera, material, light, orbit, keyboard, newStructure; // Initial variables
 scene = new THREE.Scene();    // Create main scene
 renderer = initRenderer();    // Init a basic renderer
-//camera = initCamera(new THREE.Vector3(0, 15, 30)); // Init camera in this position
 material = setDefaultMaterial(); // create a basic material
 light = initDefaultBasicLight(scene); // Create a basic light to illuminate the scene
-let myCamera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-myCamera.position.set(50, 75, 100);
-orbit = new OrbitControls( myCamera, renderer.domElement ); // Enable mouse rotation, pan, zoom etc.
+camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(50, 75, 100);
+orbit = new OrbitControls( camera, renderer.domElement ); // Enable mouse rotation, pan, zoom etc.
 keyboard = new KeyboardState();
 
-
-let myMaterial = setDefaultMaterial();
-let myVoxel = new Voxel({x: 0, y: 0, z: 0}, myMaterial, true);
-myVoxel.changeSize(1.05);
-myVoxel.place(scene);
-
-myVoxel.getObject().add(myCamera);
+// Criando o plano para compor a cena
+let groundPlane = createGroundPlaneXZ(110, 110, 40, 40); // width, height, resolutionW, resolutionH
+scene.add(groundPlane);
 
 // Listen window size changes
-window.addEventListener( 'resize', function(){onWindowResize(myCamera, renderer)}, false );
+window.addEventListener( 'resize', function(){onWindowResize(camera, renderer)}, false );
 
 // Show axes (parameter is size of each axis)
 let axesHelper = new THREE.AxesHelper( 12 );
 scene.add( axesHelper );
+
+// Criando voxel de highlight (cursor)
+let myMaterial = setDefaultMaterial();
+let highlightVoxel = new Voxel({x: 0, y: 0, z: 0}, myMaterial, true);
+highlightVoxel.changeSize(1.05);
+highlightVoxel.place(scene);
+highlightVoxel.getObject().add(camera);
+
+// Objeto em contrução e sua funções
+window.currentBuild = { // Somente para teste no console, depois mudar para linha baixo
+// const currentBuild = {
+  matrix: [],
+  size: 0,
+  buildMatrix: function() // Cria a matriz que armazena os voxels
+  {
+    this.matrix = [];
+    for (let i = 0; i < 10; i++) {
+      const plane = [];
+      for (let j = 0; j < 10; j++) {
+        const row = new Array(10).fill(null); // Cria uma linha preenchida com `null`
+        plane.push(row);
+      }
+      this.matrix.push(plane);
+    }
+  },
+  /**
+   * Obtém a posição na matriz.
+   * @param {*} pos Posição no mundo.
+   * @returns 
+   */
+  getMatrixPosition: function (pos)  
+  {
+    let factor = 5 * (VX - 1);
+    return new Vector3 ((pos.x + factor) / VX, (pos.y + factor) / VX, (pos.z + factor) / VX);
+  },
+  /**
+   * Verifica se a celula da matriz está vazia.
+   * @param {*} pos Posição no mundo.
+   * @returns 
+   */
+  isCellEmpty: function (pos)
+  {
+    pos = this.getMatrixPosition(pos);
+    return this.matrix[pos.x][pos.y][pos.z] == null;
+  },
+  /**
+   * Adiciona Voxel na matriz.
+   * @param {*} pos Posição no mundo.
+   * @param {*} voxel Voxel a ser adicionado.
+   */
+  addVoxel: function (pos, voxel)
+  {
+    pos = this.getMatrixPosition(pos);
+    this.matrix[pos.x][pos.y][pos.z] = voxel;
+    this.size ++;
+  },
+  /**
+   * Função chamada pela GUI para criar um novo Voxel.
+   */
+  createVoxel: function()
+  {
+    let pos = highlightVoxel.getObject().position;
+    if(!this.isCellEmpty(pos)){
+      // Criar aviso de erro
+      console.log("Espaço ocupado!")
+    } else {
+      let newVoxel = new Voxel(pos, setDefaultMaterial(), false, true);
+      currentBuild.addVoxel(pos, newVoxel);
+      scene.add(newVoxel.getObject());
+    }
+  }
+}
 
 let data = {
   x: 10,
@@ -46,9 +113,10 @@ let data = {
   z: 60
 };
 
+// Variáveis e funções relacionadas ao grid
 const grid = {
   array: [], // Array com as camadas do grid
-  opacity: 0.3, // Opacidade das camadas
+  opacity: 0.0, // Opacidade das camadas
   buildGrid: function() // Criação do grid
   {
     this.array = []; // Reseta o array (Caso necessário)
@@ -69,6 +137,7 @@ const grid = {
   }
 }
 
+currentBuild.buildMatrix();
 grid.buildGrid();
 buildInterface();
 showInformation();
@@ -76,20 +145,29 @@ render();
 
 function render()
 {
-  updateCamera(myCamera, myVoxel.getObject())
+  updateCamera(camera, highlightVoxel.getObject())
   requestAnimationFrame(render);
   keyboardUpdate();
-  renderer.render(scene, myCamera) // Render scene
+  renderer.render(scene, camera) // Render scene
 }
 
 function keyboardUpdate() {
 
   keyboard.update();
+
+  // Salvamento e Carregamento
   if (keyboard.down("P")) saveStructure(data, "arqTeste"); 
   if (keyboard.down("I")) newStructure = loadStructure();
   if (keyboard.down("U")) showNewStructure(newStructure);
-  if (keyboard.down("D")) myVoxel.pushOnX();
-  if (keyboard.down("A")) myVoxel.pullOnX();
+
+  // Movimentação do Highlight
+  if (keyboard.down("D")) highlightVoxel.pushOnX();
+  if (keyboard.down("A")) highlightVoxel.pullOnX();
+  if (keyboard.down("S")) highlightVoxel.pushOnZ();
+  if (keyboard.down("W")) highlightVoxel.pullOnZ();
+  if (keyboard.down("E")) highlightVoxel.pushOnY();
+  if (keyboard.down("Q")) highlightVoxel.pullOnY();
+
 }
 
 function showInformation()
@@ -103,9 +181,12 @@ function showInformation()
 function buildInterface()
 {     
   let gui = new GUI();
-  let folder = gui.addFolder("Grid");
-    folder.open();
-    folder.add(grid, 'opacity', 0, 1).onChange(function () {grid.updateGrid();});
+  let gridFolder = gui.addFolder("Grid");
+    gridFolder.open();
+    gridFolder.add(grid, 'opacity', 0, 1).onChange(function () {grid.updateGrid();}).name("Opacidade");
+  let voxelFolder = gui.addFolder("Voxel");
+    voxelFolder.open();
+    voxelFolder.add(currentBuild, 'createVoxel').name("Criar");
 }
 
 
@@ -143,7 +224,6 @@ function loadStructure(){
         return response.json();
       })
       .then((data) => {
-        console.log("Loaded object: ", data);
       })
       .catch((error) => {
         console.error("Error loading file: ", error);
@@ -159,9 +239,7 @@ function loadStructure(){
 
 function showNewStructure(structure){
   if (!structure){
-    console.log("Nenhuma estrutura carregda.")
   } else {
-    console.log(structure);
   }
 }
 
@@ -173,32 +251,13 @@ function updateCamera(camera, object){
   camera.lookAt(object.position);
 }
 
-// function colocaVoxel(){
-
-//   posicao = pegaPosicaoDoHighlight();
-
-//   if(!checaPosicao(posicao)) return;
-
-//   new voxel.posicao = posicao;
-//   scene.add(voxel);
-//   minhaMatrix3d[pos.x][pos.y][pos.z] = voxel;
-
-// }
 
 // function checaPosicao(posicao){
 
 
 // }
 
-// let minhaMatrix3d = [[[]]];
 
-// for (let i = 0; i < 10; i++){
-//   for (let j = 0; j < 10; i++){
-//     for (let k = 0; k < 10; i++){
-//       minhaMatrix3d[i][j][k] = null;
-//     }
-//   }
-// }
 
 // {
 //   pos: {x: 1, y: 1, z: 1},
