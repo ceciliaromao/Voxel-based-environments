@@ -16,15 +16,16 @@ export const MATERIALS = {
 }
 
 export default class Voxel {
-    constructor(pos = {x: 0, y: 0, z: 0}, material = setDefaultMaterial(), wireframe = false, worldCoordinates = false){
+    constructor(pos = {x: 0, y: 0, z: 0}, color, wireframe = false, worldCoordinates = false){
+        this.color = color;
         this.wireframe = wireframe;
         this.geometry = new THREE.BoxGeometry(1*VX, 1*VX, 1*VX);
         if (wireframe){ 
             this.geometry = new THREE.WireframeGeometry(this.geometry);
-            const lineMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00 });
+            const lineMaterial = new THREE.LineBasicMaterial({ color: color });
             this.cube = new THREE.LineSegments(this.geometry, lineMaterial);
         } else {
-            this.cube = new THREE.Mesh(this.geometry, material);
+            this.cube = new THREE.Mesh(this.geometry, setDefaultMaterial(color));
         }
         if (worldCoordinates) {
             this.cube.position.set(
@@ -43,6 +44,10 @@ export default class Voxel {
 
     changeSize(scale){
         this.cube.scale.set(scale, scale, scale);
+    }
+
+    changeMaterial(material){
+        this.cube.material = material;
     }
 
     place(scene){
