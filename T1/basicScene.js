@@ -126,7 +126,7 @@ const currentBuild = {
     /**
      * Função chamada pela GUI para criar um novo Voxel na posição passada.
      */
-    createVoxel: function (pos = highlightVoxel.getObject().position,  material = 1) {
+    createVoxel: function (pos = highlightVoxel.getObject().position) {
         if (!this.isCellEmpty(pos)) {
             // TODO Criar aviso de erro
             console.log("Espaço ocupado!")
@@ -272,7 +272,8 @@ const saveControls = {
       } else {
           currentBuild.clearBuild();
           for (let item in this.newStructure) {
-              currentBuild.createVoxel(this.newStructure[item].pos, this.newStructure[item].material);
+            materialsIndex = voxelColors.findIndex(e => e === this.newStructure[item].material);
+            currentBuild.createVoxel(this.newStructure[item].pos);
           }
       }
   }
