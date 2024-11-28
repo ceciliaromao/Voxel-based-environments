@@ -225,12 +225,6 @@ const saveControls = {
    */
   title: "",
   newStructure: null,
-  /**
-   * Função chamada pela GUI alterar o nome do arquivo. 
-   */
-  changeFileName: function(title){
-        this.title = title;
-  },
   saveStructure: function () {
     let data = currentBuild.getData();
     let fileName = this.title;
@@ -277,7 +271,7 @@ const saveControls = {
   },
   showNewStructure: function () {
       if (!this.newStructure) {
-          console.error("Nenhum estrutura nova para ser mostrada.")
+          console.error("Nenhuma estrutura nova para ser mostrada.")
       } else {
           currentBuild.clearBuild();
           for (let item in this.newStructure) {
@@ -285,6 +279,15 @@ const saveControls = {
             currentBuild.createVoxel(this.newStructure[item].pos);
           }
       }
+  },
+  loadAndShow: function () {
+    this.loadStructure();
+    let checkInterval = setInterval(() => {
+        if (this.newStructure !== null) {
+            clearInterval(checkInterval);
+            this.showNewStructure();
+        }
+    }, 100);
   }
 }
 
@@ -312,22 +315,40 @@ const grid = {
     }
 }
 
-currentBuild.buildMatrix();
-grid.buildGrid();
-buildInterface();
-showInformation();
-render();
+// Contrói a GUI
+function buildInterface() {
+    let gui = new GUI();
+    
+    let gridFolder = gui.addFolder("Grid");
+    gridFolder.open();
+    gridFolder.add(grid, 'opacity', 0, 1).onChange(function () { grid.updateGrid(); }).name("Opacidade");
+    
+    let fileManageamentFolder = gui.addFolder("Arquivo");
+    fileManageamentFolder.open();
+    fileManageamentFolder.add(saveControls, 'title').name("Título:");
+    fileManageamentFolder.add(saveControls, 'saveStructure').name("Salvar");
+    fileManageamentFolder.add(saveControls, 'loadAndShow').name("Carregar");
 
-function render() {
-    updateCamera(camera, highlightVoxel.getObject())
-    requestAnimationFrame(render);
-    keyboardUpdate();
-    renderer.render(scene, camera) // Render scene
+    let voxelFolder = gui.addFolder("Voxel");
+    voxelFolder.open();
+    voxelFolder.add(currentBuild, 'nextMaterial').name("Próximo material");
+    voxelFolder.add(currentBuild, 'previousMaterial').name("Material anterior");
+    voxelFolder.add(currentBuild, 'createVoxel').name("Criar");
+    voxelFolder.add(currentBuild, 'removeVoxel').name("Remover");
+}
+
+function isFocusedOnInput() {
+    return document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA';
 }
 
 function keyboardUpdate() {
 
     keyboard.update();
+
+    // Verificação para não fazer nada se o foco estiver em um campo de entrada
+    if (isFocusedOnInput()) {
+        return; 
+    }
 
     // Salvamento e Carregamento
     if (keyboard.down("P")) saveControls.saveStructure(currentBuild.getData(), "arqTeste");
@@ -350,31 +371,13 @@ function keyboardUpdate() {
 
 function showInformation() {
     var controls = new InfoBox();
+    controls.add("Movimentar cursor no plano XZ: Setas do teclado");
+    controls.add("Movimentar cursor no eixo Y: PageUp | PageDown");
+    controls.add("Adicionar/remover bloco: Q | E");
+    controls.add("Navegar pelos materiais: . | ,");
     controls.add("Use P para salvar, I para carregar e U para mostrar objeto carregado");
     controls.show();
 }
-
-// Contrói a GUI
-function buildInterface() {
-    let gui = new GUI();
-    
-    let gridFolder = gui.addFolder("Grid");
-    gridFolder.open();
-    gridFolder.add(grid, 'opacity', 0, 1).onChange(function () { grid.updateGrid(); }).name("Opacidade");
-    
-    let fileManageamentFolder = gui.addFolder("Arquivo");
-    fileManageamentFolder.open();
-    fileManageamentFolder.add(saveControls, 'changeFileName').onFinishChange(function (title) { saveControls.changeFileName(title) }).name("Título:");
-    fileManageamentFolder.add(saveControls, 'saveStructure').name("Salvar");
-    fileManageamentFolder.add(saveControls, 'loadStructure').name("Carregar");
-
-    let voxelFolder = gui.addFolder("Voxel");
-    voxelFolder.open();
-    voxelFolder.add(currentBuild, 'nextMaterial').name("Próximo material");
-    voxelFolder.add(currentBuild, 'createVoxel').name("Criar");
-    voxelFolder.add(currentBuild, 'removeVoxel').name("Remover");
-}
-
 
 function getPosition(pos) {
     return new THREE.Vector3(pos.x * VX + VX / 2, pos.y * VX + VX / 2, pos.z * VX + VX / 2);
@@ -397,3 +400,16 @@ function initMaterials(colors){
       lineMaterials: lineMaterials
     }
 }
+
+function render() {
+    updateCamera(camera, highlightVoxel.getObject())
+    requestAnimationFrame(render);
+    keyboardUpdate();
+    renderer.render(scene, camera) // Render scene
+}
+
+currentBuild.buildMatrix();
+grid.buildGrid();
+buildInterface();
+showInformation();
+render();
