@@ -1,0 +1,466 @@
+[
+    {
+        "pos": {
+            "x": 5,
+            "y": 5,
+            "z": 5
+        },
+        "material": "darkgoldenrod"
+    },
+    {
+        "pos": {
+            "x": 5,
+            "y": 15,
+            "z": 5
+        },
+        "material": "darkgoldenrod"
+    },
+    {
+        "pos": {
+            "x": -15,
+            "y": 25,
+            "z": -5
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": -15,
+            "y": 25,
+            "z": 5
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": -15,
+            "y": 25,
+            "z": 15
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": -5,
+            "y": 25,
+            "z": -15
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": -5,
+            "y": 25,
+            "z": -5
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": -5,
+            "y": 25,
+            "z": 5
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": -5,
+            "y": 25,
+            "z": 15
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": -5,
+            "y": 25,
+            "z": 25
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": 5,
+            "y": 25,
+            "z": -15
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": 5,
+            "y": 25,
+            "z": -5
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": 5,
+            "y": 25,
+            "z": 5
+        },
+        "material": "darkgoldenrod"
+    },
+    {
+        "pos": {
+            "x": 5,
+            "y": 25,
+            "z": 15
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": 5,
+            "y": 25,
+            "z": 25
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": 15,
+            "y": 25,
+            "z": -15
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": 15,
+            "y": 25,
+            "z": -5
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": 15,
+            "y": 25,
+            "z": 5
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": 15,
+            "y": 25,
+            "z": 15
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": 15,
+            "y": 25,
+            "z": 25
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": 25,
+            "y": 25,
+            "z": -5
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": 25,
+            "y": 25,
+            "z": 5
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": 25,
+            "y": 25,
+            "z": 15
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": -15,
+            "y": 35,
+            "z": -5
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": -15,
+            "y": 35,
+            "z": 5
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": -15,
+            "y": 35,
+            "z": 15
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": -5,
+            "y": 35,
+            "z": -15
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": -5,
+            "y": 35,
+            "z": -5
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": -5,
+            "y": 35,
+            "z": 5
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": -5,
+            "y": 35,
+            "z": 15
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": -5,
+            "y": 35,
+            "z": 25
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": 5,
+            "y": 35,
+            "z": -15
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": 5,
+            "y": 35,
+            "z": -5
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": 5,
+            "y": 35,
+            "z": 5
+        },
+        "material": "darkgoldenrod"
+    },
+    {
+        "pos": {
+            "x": 5,
+            "y": 35,
+            "z": 15
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": 5,
+            "y": 35,
+            "z": 25
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": 15,
+            "y": 35,
+            "z": -15
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": 15,
+            "y": 35,
+            "z": -5
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": 15,
+            "y": 35,
+            "z": 5
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": 15,
+            "y": 35,
+            "z": 15
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": 15,
+            "y": 35,
+            "z": 25
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": 25,
+            "y": 35,
+            "z": -5
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": 25,
+            "y": 35,
+            "z": 5
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": 25,
+            "y": 35,
+            "z": 15
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": -5,
+            "y": 45,
+            "z": -5
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": -5,
+            "y": 45,
+            "z": 5
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": -5,
+            "y": 45,
+            "z": 15
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": 5,
+            "y": 45,
+            "z": -5
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": 5,
+            "y": 45,
+            "z": 5
+        },
+        "material": "darkgoldenrod"
+    },
+    {
+        "pos": {
+            "x": 5,
+            "y": 45,
+            "z": 15
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": 15,
+            "y": 45,
+            "z": -5
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": 15,
+            "y": 45,
+            "z": 5
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": 15,
+            "y": 45,
+            "z": 15
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": -5,
+            "y": 55,
+            "z": 5
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": 5,
+            "y": 55,
+            "z": -5
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": 5,
+            "y": 55,
+            "z": 5
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": 5,
+            "y": 55,
+            "z": 15
+        },
+        "material": "darkgreen"
+    },
+    {
+        "pos": {
+            "x": 15,
+            "y": 55,
+            "z": 5
+        },
+        "material": "darkgreen"
+    }
+]

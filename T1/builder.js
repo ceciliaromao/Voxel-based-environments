@@ -356,10 +356,10 @@ function keyboardUpdate() {
     if (keyboard.down("U")) saveControls.showNewStructure();
 
     // Movimentação do Highlight
-    if (keyboard.down("right")) highlightVoxel.pushOnX();
-    if (keyboard.down("left")) highlightVoxel.pullOnX();
-    if (keyboard.down("down")) highlightVoxel.pushOnZ();
-    if (keyboard.down("up")) highlightVoxel.pullOnZ();
+    if (keyboard.down("right") || keyboard.down("D")) highlightVoxel.pushOnX();
+    if (keyboard.down("left") || keyboard.down("A")) highlightVoxel.pullOnX();
+    if (keyboard.down("down") || keyboard.down("S")) highlightVoxel.pushOnZ();
+    if (keyboard.down("up") || keyboard.down("W")) highlightVoxel.pullOnZ();
     if (keyboard.down("pageup") || keyboard.down("2")) highlightVoxel.pushOnY();
     if (keyboard.down("pagedown") || keyboard.down("1")) highlightVoxel.pullOnY();
     if (keyboard.down("Q")) currentBuild.createVoxel();
@@ -371,11 +371,11 @@ function keyboardUpdate() {
 
 function showInformation() {
     var controls = new InfoBox();
-    controls.add("Movimentar cursor no plano XZ: Setas do teclado");
+    controls.add("Movimentar cursor no plano XZ: Setas do teclado | WASD");
     controls.add("Movimentar cursor no eixo Y: PageUp | PageDown");
     controls.add("Adicionar/remover bloco: Q | E");
     controls.add("Navegar pelos materiais: . | ,");
-    controls.add("Use P para salvar, I para carregar e U para mostrar objeto carregado");
+    controls.add("P: Salvar, I: Carregar, U: Mostrar objeto");
     controls.show();
 }
 
