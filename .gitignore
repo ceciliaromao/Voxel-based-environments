@@ -1,0 +1,7 @@
+# Arquivos usados para intellisense
+/node_modules
+package.json
+package-lock.json
+
+# Testes
+T1/output
