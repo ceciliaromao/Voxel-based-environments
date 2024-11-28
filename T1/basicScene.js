@@ -121,6 +121,15 @@ const currentBuild = {
      */
     nextMaterial: function () {
         materialsIndex = (materialsIndex + 1) % materials.length;
+        console.log(materialsIndex);
+        highlightVoxel.changeMaterial(lineMaterials[materialsIndex]);
+    },
+    /**
+     * Função chamada pela GUI para alterar o material selecionado
+    */
+   previousMaterial: function () {
+       materialsIndex = materialsIndex - 1 == -1 ? materials.length - 1 : materialsIndex - 1;
+       console.log(materialsIndex);
         highlightVoxel.changeMaterial(lineMaterials[materialsIndex]);
     },
     /**
@@ -326,12 +335,16 @@ function keyboardUpdate() {
     if (keyboard.down("U")) saveControls.showNewStructure();
 
     // Movimentação do Highlight
-    if (keyboard.down("D")) highlightVoxel.pushOnX();
-    if (keyboard.down("A")) highlightVoxel.pullOnX();
-    if (keyboard.down("S")) highlightVoxel.pushOnZ();
-    if (keyboard.down("W")) highlightVoxel.pullOnZ();
-    if (keyboard.down("E")) highlightVoxel.pushOnY();
-    if (keyboard.down("Q")) highlightVoxel.pullOnY();
+    if (keyboard.down("right")) highlightVoxel.pushOnX();
+    if (keyboard.down("left")) highlightVoxel.pullOnX();
+    if (keyboard.down("down")) highlightVoxel.pushOnZ();
+    if (keyboard.down("up")) highlightVoxel.pullOnZ();
+    if (keyboard.down("pageup") || keyboard.down("2")) highlightVoxel.pushOnY();
+    if (keyboard.down("pagedown") || keyboard.down("1")) highlightVoxel.pullOnY();
+    if (keyboard.down("Q")) currentBuild.createVoxel();
+    if (keyboard.down("E")) currentBuild.removeVoxel();
+    if (keyboard.down(".")) currentBuild.nextMaterial();
+    if (keyboard.down(",")) currentBuild.previousMaterial();
 
 }
 
