@@ -58,6 +58,14 @@ export default class Voxel {
         return this.cube;
     }
 
+    getPosition(){
+        return {
+            x: Math.floor(this.cube.position.x / VX),
+            y: Math.floor(this.cube.position.y / VX),
+            z: Math.floor(this.cube.position.z / VX),
+        }
+    }
+
     moveVoxel(pos){
         this.cube.position.set(
             (pos.x)*VX + VX/2, 
