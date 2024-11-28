@@ -10,6 +10,10 @@ import {initRenderer,
 import KeyboardState from '../libs/util/KeyboardState.js';
 
 const VX = 10;
+export const MATERIALS = {
+    1: setDefaultMaterial()
+    // TODO Colocar todas as cores
+}
 
 export default class Voxel {
     constructor(pos = {x: 0, y: 0, z: 0}, material = setDefaultMaterial(), wireframe = false, worldCoordinates = false){

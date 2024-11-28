@@ -11,7 +11,7 @@ import {
 } from "../libs/util/util.js";
 import KeyboardState from '../libs/util/KeyboardState.js';
 import GUI from '../libs/util/dat.gui.module.js'
-import Voxel from './voxel.js'
+import Voxel, { MATERIALS } from './voxel.js'
 import { Material, Vector2, Vector3 } from '../build/three.module.js';
 
 const VX = 10;
@@ -38,17 +38,30 @@ let axesHelper = new THREE.AxesHelper(12);
 scene.add(axesHelper);
 
 // Criando voxel de highlight (cursor)
-let myMaterial = setDefaultMaterial();
-let highlightVoxel = new Voxel({ x: 0, y: 0, z: 0 }, myMaterial, true);
+let highlightVoxel = new Voxel({ x: 0, y: 0, z: 0 }, setDefaultMaterial(), true);
 highlightVoxel.changeSize(1.05);
 highlightVoxel.place(scene);
 highlightVoxel.getObject().add(camera);
 
 // Objeto em contrução e sua funções
-window.currentBuild = { // Somente para teste no console, depois mudar para linha baixo
-    // const currentBuild = {
+// window.currentBuild = { // Somente para teste no console, depois mudar para linha baixo
+const currentBuild = {
+    /**
+     * Matriz contendo os Voxels (classe completa).
+     * 
+     * Exemplo de funcionamento:
+     * - Célula [0][0][0] corresponde a posição (-5, 0, -5) no grid.
+     * - Célula [5][0][5] corresponde a posição (0, 0, 0) no grid.
+     * - Célula [9][0][9] corresponde a posição (4, 0, 4) no grid.
+     */
     matrix: [],
+    /**
+     * Quantidade de Voxels presentes nessa estrutura.
+     */
     size: 0,
+    /**
+     * Limpa a matriz e a recontrói novamente com campos nulos.
+     */
     buildMatrix: function () // Cria a matriz que armazena os voxels
     {
         this.matrix = [];
@@ -98,17 +111,17 @@ window.currentBuild = { // Somente para teste no console, depois mudar para linh
         this.size += value == null ? -1 : 1;
     },
     /**
-     * Função chamada pela GUI para criar um novo Voxel na posição do highlight.
+     * Função chamada pela GUI para criar um novo Voxel na posição passada.
      */
-    createVoxel: function () {
-        let pos = highlightVoxel.getObject().position;
+    createVoxel: function (pos = highlightVoxel.getObject().position,  material = 1) {
         if (!this.isCellEmpty(pos)) {
-            // Criar aviso de erro
+            // TODO Criar aviso de erro
             console.log("Espaço ocupado!")
         } else {
-            let newVoxel = new Voxel(pos, setDefaultMaterial(), false, true);
+            material = MATERIALS[material];
+            let newVoxel = new Voxel(pos, material, false, true);
             this.setValueToMatrixCell(pos, newVoxel);
-            scene.add(newVoxel.getObject());
+            newVoxel.place(scene);
         }
     },
     /**
@@ -122,17 +135,125 @@ window.currentBuild = { // Somente para teste no console, depois mudar para linh
             scene.remove(voxel.getObject());
             voxel = null; // Desalocação de memória
         } else {
-            // Criar aviso
+            // TODO Criar aviso
             console.log("Espaço vazio!")
         }
+    },
+    /**
+     * Deleta todos os Voxels da cena e chama a função de recriar a matriz.
+     * @returns 
+     */
+    clearBuild: function () {
+        let voxelsFound = 0; // Contador usado para diminuir o tempo percorrendo a matriz.
+        let voxeldToBeFound = this.size;
+        for (let y = 0; y < 10; y++) {
+            for (let x = 0; x < 10; x++) {
+                for (let z = 0; z < 10; z++) {
+                    if (this.matrix[x][y][z] != null) {
+                        scene.remove(this.matrix[x][y][z].getObject());
+                        voxelsFound++;
+                        if (voxelsFound == voxeldToBeFound) {
+                            this.buildMatrix();
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+    },
+    /**
+     * Cria e retorna todos os Voxels da matriz atual em uma lista
+     * com objetos contendo os campos:
+     * - pos: **objeto** contendo as posições **x**, **y**, **z** do Voxel.
+     * - material: **inteiro** correspondente a um tipo de material. 
+     * @returns 
+     */
+    getData: function () {
+        let data = [];
+        let voxelsFound = 0; // Contador usado para diminuir o tempo percorrendo a matriz.
+        let voxeldToBeFound = this.size;
+        for (let y = 0; y < 10; y++) {
+            for (let x = 0; x < 10; x++) {
+                for (let z = 0; z < 10; z++) {
+                    if (this.matrix[x][y][z] != null) {
+                        let voxel = this.matrix[x][y][z]
+                        let voxelObject = voxel.getObject()
+                        data.push({
+                            pos: {
+                                x: voxelObject.position.x,
+                                y: voxelObject.position.y,
+                                z: voxelObject.position.z,
+                            },
+                            material: 1 // TODO Mudar depois que tivermos os materiais
+                        })
+                        voxelsFound++;
+                        if (voxelsFound == voxeldToBeFound) {
+                            return data;
+                        }
+                    }
+                }
+            }
+        }
+        return data;
     }
 }
 
-let data = {
-    x: 10,
-    y: 35,
-    z: 60
-};
+const saveControls = {
+    newStructure: null,
+    saveStructure: function (data, defaultFilename = "data.json") {
+        const blob = new Blob([JSON.stringify(data, null, 4)], { type: 'application/json' });
+    
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = defaultFilename;
+    
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    },
+    loadStructure: function () {
+        const fileInput = document.createElement("input");
+        fileInput.type = "file";
+        fileInput.accept = ".json";
+    
+        fileInput.onchange = () => {
+            const file = fileInput.files[0]; 
+            if (!file) {
+                console.error("Nenhum arquivo selecionado.");
+                return;
+            }
+    
+            const reader = new FileReader();
+    
+            reader.onload = (event) => {
+                try {
+                    const data = JSON.parse(event.target.result); 
+                    this.newStructure = data;
+                } catch (error) {
+                    console.error("Erro ao processar o arquivo JSON:", error);
+                }
+            };
+    
+            reader.onerror = () => {
+                console.error("Erro ao carregar o arquivo.");
+            };
+    
+            reader.readAsText(file);
+        };
+    
+        fileInput.click();
+    },
+    showNewStructure: function () {
+        if (!this.newStructure) {
+            console.error("Nenhum estrutura nova para ser mostrada.")
+        } else {
+            currentBuild.clearBuild();
+            for (let item in this.newStructure) {
+                currentBuild.createVoxel(this.newStructure[item].pos, this.newStructure[item].material);
+            }
+        }
+    }
+}
 
 // Variáveis e funções relacionadas ao grid
 const grid = {
@@ -176,9 +297,9 @@ function keyboardUpdate() {
     keyboard.update();
 
     // Salvamento e Carregamento
-    if (keyboard.down("P")) saveStructure(data, "arqTeste");
-    if (keyboard.down("I")) newStructure = loadStructure();
-    if (keyboard.down("U")) showNewStructure(newStructure);
+    if (keyboard.down("P")) saveControls.saveStructure(currentBuild.getData(), "arqTeste");
+    if (keyboard.down("I")) saveControls.loadStructure();
+    if (keyboard.down("U")) saveControls.showNewStructure();
 
     // Movimentação do Highlight
     if (keyboard.down("D")) highlightVoxel.pushOnX();
@@ -210,60 +331,6 @@ function buildInterface() {
     voxelFolder.add(currentBuild, 'removeVoxel').name("Remover");
 }
 
-
-function saveStructure(data, defaultFilename = "data.json") {
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = defaultFilename;
-
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-}
-
-function loadStructure() {
-    const fileInput = document.createElement("input");
-    fileInput.type = "file";
-    fileInput.accept = ".json";
-
-    fileInput.onchange = () => {
-        const file = fileInput.files[0];
-        if (!file) {
-            console.error("Nenhum arquivo selecionado.");
-            return;
-        }
-
-        const fileUrl = URL.createObjectURL(file);
-
-        fetch(fileUrl)
-            .then((response) => {
-                if (!response.ok) {
-                    throw new Error(`Não foi possível abrir arquivo: ${response.statusText}`);
-                }
-                return response.json();
-            })
-            .then((data) => {
-            })
-            .catch((error) => {
-                console.error("Error loading file: ", error);
-            })
-            .finally(() => {
-                URL.revokeObjectURL(fileUrl);
-            });
-    }
-
-    fileInput.click();
-    return data;
-}
-
-function showNewStructure(structure) {
-    if (!structure) {
-    } else {
-    }
-}
-
 function getPosition(pos) {
     return new THREE.Vector3(pos.x * VX + VX / 2, pos.y * VX + VX / 2, pos.z * VX + VX / 2);
 }
@@ -271,17 +338,3 @@ function getPosition(pos) {
 function updateCamera(camera, object) {
     camera.lookAt(object.position);
 }
-
-
-// function checaPosicao(posicao){
-
-
-// }
-
-
-
-// {
-//   pos: {x: 1, y: 1, z: 1},
-//   existe: true,
-//   material: material
-// }
