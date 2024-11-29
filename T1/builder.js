@@ -7,7 +7,8 @@ import {
     setDefaultMaterial,
     InfoBox,
     onWindowResize,
-    createGroundPlaneXZ
+    createGroundPlaneXZ,
+    SecondaryBox
 } from "../libs/util/util.js";
 import KeyboardState from '../libs/util/KeyboardState.js';
 import GUI from '../libs/util/dat.gui.module.js'
@@ -16,7 +17,7 @@ import { Material, Vector2, Vector3 } from '../build/three.module.js';
 
 const VX = 10;
 
-let scene, renderer, camera, light, orbit, keyboard, newStructure, voxelColors, materialsIndex = 0; // Initial variables
+let scene, renderer, camera, light, orbit, keyboard, newStructure, cursorPosition, cursorPositionTracker, voxelColors, materialsIndex = 0; // Initial variables
 scene = new THREE.Scene();    // Create main scene
 renderer = initRenderer();    // Init a basic renderer
 light = initDefaultBasicLight(scene); // Create a basic light to illuminate the scene
@@ -35,6 +36,11 @@ let { materials, lineMaterials } = initMaterials(voxelColors);
 // Criando o plano para compor a cena
 let groundPlane = createGroundPlaneXZ(110, 110, 40, 40); // width, height, resolutionW, resolutionH
 scene.add(groundPlane);
+
+// Criando a informação tracker do cursor
+cursorPositionTracker = new SecondaryBox();
+cursorPositionTracker.box.style.top = "0";
+cursorPositionTracker.box.style.bottom = "93%";
 
 // Listen window size changes
 window.addEventListener('resize', function () { onWindowResize(camera, renderer) }, false);
@@ -121,15 +127,13 @@ const currentBuild = {
      */
     nextMaterial: function () {
         materialsIndex = (materialsIndex + 1) % materials.length;
-        console.log(materialsIndex);
         highlightVoxel.changeMaterial(lineMaterials[materialsIndex]);
     },
     /**
      * Função chamada pela GUI para alterar o material selecionado
     */
    previousMaterial: function () {
-       materialsIndex = materialsIndex - 1 == -1 ? materials.length - 1 : materialsIndex - 1;
-       console.log(materialsIndex);
+        materialsIndex = materialsIndex - 1 == -1 ? materials.length - 1 : materialsIndex - 1;
         highlightVoxel.changeMaterial(lineMaterials[materialsIndex]);
     },
     /**
@@ -353,9 +357,9 @@ function keyboardUpdate() {
     }
 
     // Salvamento e Carregamento
-    if (keyboard.down("P")) saveControls.saveStructure(currentBuild.getData(), "arqTeste");
-    if (keyboard.down("I")) saveControls.loadStructure();
-    if (keyboard.down("U")) saveControls.showNewStructure();
+    //if (keyboard.down("P")) saveControls.saveStructure(currentBuild.getData(), "arqTeste");
+    //if (keyboard.down("I")) saveControls.loadStructure();
+    //if (keyboard.down("U")) saveControls.showNewStructure();
 
     // Movimentação do Highlight
     if (keyboard.down("right") || keyboard.down("D")) highlightVoxel.pushOnX();
@@ -377,7 +381,7 @@ function showInformation() {
     controls.add("Movimentar cursor no eixo Y: PageUp | PageDown");
     controls.add("Adicionar/remover bloco: Q | E");
     controls.add("Navegar pelos materiais: . | ,");
-    controls.add("P: Salvar, I: Carregar, U: Mostrar objeto");
+    //controls.add("P: Salvar, I: Carregar, U: Mostrar objeto");
     controls.show();
 }
 
@@ -403,8 +407,14 @@ function initMaterials(colors){
     }
 }
 
+function updateCursorPosition() {
+    cursorPosition = highlightVoxel.getPosition();
+    cursorPositionTracker.changeMessage(`x: ${cursorPosition.x} y: ${cursorPosition.y} z: ${cursorPosition.z}`);
+}
+
 function render() {
     updateCamera(camera, highlightVoxel.getObject())
+    updateCursorPosition();
     requestAnimationFrame(render);
     keyboardUpdate();
     renderer.render(scene, camera) // Render scene
