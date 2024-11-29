@@ -167,6 +167,7 @@ const currentBuild = {
     clearBuild: function () {
       let voxelsFound = 0; // Contador usado para diminuir o tempo percorrendo a matriz.
       let voxeldToBeFound = this.size;
+      this.size = 0;
       for (let y = 0; y < 10; y++) {
           for (let x = 0; x < 10; x++) {
               for (let z = 0; z < 10; z++) {
@@ -281,6 +282,7 @@ const saveControls = {
       }
   },
   loadAndShow: function () {
+    this.newStructure = null;
     this.loadStructure();
     let checkInterval = setInterval(() => {
         if (this.newStructure !== null) {
