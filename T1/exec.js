@@ -16,10 +16,11 @@ import Voxel, { MATERIALS } from './voxel.js'
 import { Material, Vector2, Vector3 } from '../build/three.module.js';
 
 const VX = 10;
-const SPEED = 2;
+const SPEED = 40;
 const FLY_FACTOR = .5;
+const SPEED_UP_FACTOR = 2;
 
-let scene, renderer, camera, light, orbit, keyboard, newStructure, voxelColors, materialsIndex = 0, gui; // Initial variables
+let mapaFolder, scene, renderer, camera, light, orbit, keyboard, newStructure, voxelColors, materialsIndex = 0, gui; // Initial variables
 scene = new THREE.Scene();    // Create main scene
 renderer = initRenderer();    // Init a basic renderer
 light = initDefaultBasicLight(scene); // Create a basic light to illuminate the scene
@@ -34,40 +35,37 @@ voxelColors = [
   'darkgreen'
 ]
 
-/* CONSTRUCAO CAMERA PRIMEIRA PESSOA  <<<< EM CONSTRUÇÃO !!!! >>>>>
- TODO: 
-    1. adicionar delta (clock) para o cálculo da movimentação ser mais legível
-    2. alterar a informação de controle ao mudar de camera
-    3. retirar os eventos de click do mouse
-*/
-
+/* Inicialização das variáveis do controle do personagem */
+let forward = false, backward = false, right = false, left = false, up = false, down = false, speedUp = false;
 const FPCamera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 1000 );
 FPCamera.position.set(0, 50, 0);
 const FPControls = new PointerLockControls(FPCamera, renderer.domElement);
+scene.add(FPControls.getObject());
+const clock = new THREE.Clock();
 const FPMovement = {
-    moveForward: function () {
-        FPControls.moveForward(SPEED)
+    moveForward: function (value) {
+        forward = value;
     },
-    moveBackward: function () {
-        FPControls.moveForward(-SPEED)
+    moveBackward: function (value) {
+        backward = value;
     },
-    moveRight: function () {
-        FPControls.moveRight(SPEED)
+    moveRight: function (value) {
+        right = value;
     },
-    moveLeft: function () {
-        FPControls.moveRight(-SPEED)
+    moveLeft: function (value) {
+        left = value;
     },
-    moveUp: function () {
-        FPControls.getObject().position.y += SPEED * FLY_FACTOR;
+    moveUp: function (value) {
+        up = value;
     },
-    moveDown: function () {
-        FPControls.getObject().position.y -= SPEED * FLY_FACTOR;
+    moveDown: function (value) {
+        down = value;
+    },
+    speedUp: function (value) {
+        speedUp = value;
     }
 }
-
-scene.add(FPControls.getObject());
-
-/* FIM CONSTRUCAO CAMERA PRIMEIRA PESSOA */
+/* Fim da inicialização das variáveis do controle do personagem */
 
 // let { materials, lineMaterials } = initMaterials(voxelColors);
 
@@ -81,7 +79,6 @@ window.addEventListener('resize', function () { onWindowResize(camera, renderer)
 // Show axes (parameter is size of each axis)
 let axesHelper = new THREE.AxesHelper(12);
 scene.add(axesHelper);
-
 
 let boxGeometry = new THREE.BoxGeometry(VX, VX, VX);
 const map = {
@@ -145,8 +142,9 @@ const map = {
 // Contrói a GUI
 function buildInterface() {
     gui = new GUI();
-    
-    let mapaFolder = gui.addFolder("Mapa");
+
+    mapaFolder = gui.addFolder("Mapa");
+
     mapaFolder.open();
     mapaFolder.add(map, 'factor').name('Fator').onChange(() => map.clearAndCreate());
     mapaFolder.add(map, 'xoff').name('XOff').onChange(() => map.clearAndCreate());
@@ -161,18 +159,32 @@ function isFocusedOnInput() {
     return document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA';
 }
 
-function perspectiveChange(){ //AQUI DEVERÁ SER REALIZADA A LÓGICA DE TROCA DE GUI
+function perspectiveChange(){
     if (camera === orbitCamera){
-        // document.getElementById('InfoxBox').innerHTML = "";
-        // initControlInformation(controlInfo);
+        // ORBIT => CONTROL
+
+        //Altera info dos controles
+        const el = document.getElementById("OrbitInfoBox");
+        if (el) el.remove();
+        initControlInformation();
+        mapaFolder.hide();
+
+        //Altera a câmera e prende o mouse
         camera = FPCamera;
         FPControls.lock();
     } else {
-        // document.getElementById('InfoxBox').remove();
-        // let orbitInfo = new InfoBox();
-        // initOrbitInformation(orbitInfo);
+        // CONTROL => ORBIT
+
+        //Altera info dos controles
+        const el = document.getElementById("ControlInfoBox");
+        if (el) el.remove();
+        initOrbitInformation();
+        mapaFolder.show();
+
+        //Altera a câmera e libera o mouse
         camera = orbitCamera;
         FPControls.unlock();
+        stopAnyMovement(); //resolve o bug de trocar de perspectiva enquanto pressiona uma tecla faz o personagem andar infinitamente
     }
 }
 
@@ -197,12 +209,20 @@ function keyboardUpdate() {
         if (keyboard.pressed("D") ) {map.xoff++; map.clear(); map.create();};
         if (keyboard.pressed("A") ) {map.xoff--; map.clear(); map.create();};
     } else { 
-        if (keyboard.pressed("W")) {FPMovement.moveForward()};
-        if (keyboard.pressed("A")) {FPMovement.moveLeft(-SPEED)};
-        if (keyboard.pressed("S")) {FPMovement.moveBackward(-SPEED)};
-        if (keyboard.pressed("D")) {FPMovement.moveRight(SPEED)};
-        if (keyboard.pressed("Q")) {FPMovement.moveUp(SPEED)};
-        if (keyboard.pressed("E")) {FPMovement.moveDown(-SPEED)};
+        if (keyboard.pressed("W")) {FPMovement.moveForward(true)};
+        if (keyboard.pressed("A")) {FPMovement.moveLeft(true)};
+        if (keyboard.pressed("S")) {FPMovement.moveBackward(true)};
+        if (keyboard.pressed("D")) {FPMovement.moveRight(true)};
+        if (keyboard.pressed("Q")) {FPMovement.moveUp(true)};
+        if (keyboard.pressed("E")) {FPMovement.moveDown(true)};
+        if (keyboard.pressed("shift")) {FPMovement.speedUp(true)};
+        if (keyboard.up("W")) {FPMovement.moveForward(false)};
+        if (keyboard.up("A")) {FPMovement.moveLeft(false)};
+        if (keyboard.up("S")) {FPMovement.moveBackward(false)};
+        if (keyboard.up("D")) {FPMovement.moveRight(false)};
+        if (keyboard.up("Q")) {FPMovement.moveUp(false)};
+        if (keyboard.up("E")) {FPMovement.moveDown(false)};
+        if (keyboard.up("shift")) {FPMovement.speedUp(false)};
     }
 
     if (keyboard.down("C")) {perspectiveChange()};
@@ -210,6 +230,7 @@ function keyboardUpdate() {
 
 function initOrbitInformation() {
     let orbitInfo = new InfoBox();
+    orbitInfo.infoBox.id = "OrbitInfoBox";
     orbitInfo.add("Fator:     Q | E");
     orbitInfo.add("X Offset:  A | D");
     orbitInfo.add("Z Offset:  W | S");
@@ -217,24 +238,48 @@ function initOrbitInformation() {
     orbitInfo.add("Divisor 2: ← | →");
     orbitInfo.add("Câmera:        C")
     orbitInfo.show();
-    let infobox = document.getElementById('InfoxBox')
+    let infobox = document.getElementById('OrbitInfoBox')
     infobox.style.fontFamily = 'Courier New, monospace';
     infobox.style.whiteSpace = 'pre';
 }
 
-// function initControlInformation(controlInfo) {
-//     controlInfo.add("Movimentação:       WASD");
-//     controlInfo.add("Voar/pousar:          QE");
-//     controlInfo.add("Mudar de perspectiva:  C");
-//     let infobox = document.getElementById('InfoxBox')
-//     infobox.style.fontFamily = 'Courier New, monospace';
-//     infobox.style.whiteSpace = 'pre';
-// }
+function initControlInformation() {
+    let controlInfo = new InfoBox();
+    controlInfo.infoBox.id = "ControlInfoBox";
+    controlInfo.add("Movimentação: W | A | S | D");
+    controlInfo.add("Voar/pousar:          Q | E");
+    controlInfo.add("Correr:               SHIFT")
+    controlInfo.add("Mudar de perspectiva:     C");
+    controlInfo.show();
+    controlInfo.infoBox.style.fontFamily = 'Courier New, monospace';
+    controlInfo.infoBox.style.whiteSpace = 'pre';
+}
+
+function moveCharacter(delta){
+    let speedMultiplier = speedUp? SPEED_UP_FACTOR : 1;
+    if (forward) {FPControls.moveForward(SPEED * delta * speedMultiplier)}
+    if (backward) {FPControls.moveForward(-SPEED * delta * speedMultiplier)}
+    if (right) {FPControls.moveRight(SPEED * delta * speedMultiplier) }
+    if (left) {FPControls.moveRight(-SPEED * delta * speedMultiplier)}
+    if (up) {FPControls.getObject().position.y += SPEED * FLY_FACTOR * delta * speedMultiplier}
+    if (down) {FPControls.getObject().position.y -= SPEED * FLY_FACTOR * delta * speedMultiplier}
+}
+
+function stopAnyMovement(){
+    forward = false;
+    backward = false;
+    right = false;
+    left = false;
+    up = false;
+    down = false;
+    speedUp = false;
+}
 
 function render() {
     requestAnimationFrame(render);
     gui.updateDisplay();
     keyboardUpdate();
+    moveCharacter(clock.getDelta());
     renderer.render(scene, camera) // Render scene
 }
 
