@@ -13,7 +13,7 @@ import {
 import KeyboardState from '../libs/util/KeyboardState.js';
 import GUI from '../libs/util/dat.gui.module.js'
 import Voxel, { MATERIALS } from './voxel.js'
-import { Material, Vector2, Vector3 } from '../build/three.module.js';
+import { BoxGeometry, Material, Mesh, Vector2, Vector3 } from '../build/three.module.js';
 
 const VX = 10;
 
@@ -54,6 +54,30 @@ let highlightVoxel = new Voxel({ x: 0, y: 0, z: 0 }, voxelColors[materialsIndex]
 highlightVoxel.changeSize(1.05);
 highlightVoxel.place(scene);
 highlightVoxel.getObject().add(camera);
+
+const hightIndicator = {
+    voxels: [],
+    material: setDefaultMaterial('lightgray'),
+    geometry: new BoxGeometry(VX, VX, VX),
+    init: function () {
+        this.material.transparent = true;
+        this.material.opacity = .5;
+    },
+    updateHightIndicator: function () {
+        let pos = highlightVoxel.getPosition();
+        for (let voxel in this.voxels) {
+            scene.remove(this.voxels[voxel]);
+        }
+        this.voxels = [];
+        for (let i = 0; i < pos.y; i++) {
+            let newVoxel = new Mesh(this.geometry, this.material);
+            newVoxel.position.set(pos.x * VX + 5,i * VX + 5,pos.z * VX + 5);
+            this.voxels.push(newVoxel);
+            scene.add(newVoxel);
+        }
+        console.log(this.voxels);
+    }
+}
 
 // Objeto em contrução e sua funções
 // window.currentBuild = { // Somente para teste no console, depois mudar para linha baixo
@@ -325,9 +349,9 @@ const grid = {
 function buildInterface() {
     let gui = new GUI();
     
-    let gridFolder = gui.addFolder("Grid");
-    gridFolder.open();
-    gridFolder.add(grid, 'opacity', 0, 1).onChange(function () { grid.updateGrid(); }).name("Opacidade");
+    // let gridFolder = gui.addFolder("Grid");
+    // gridFolder.open();
+    // gridFolder.add(grid, 'opacity', 0, 1).onChange(function () { grid.updateGrid(); }).name("Opacidade");
     
     let fileManageamentFolder = gui.addFolder("Arquivo");
     fileManageamentFolder.open();
@@ -362,12 +386,12 @@ function keyboardUpdate() {
     //if (keyboard.down("U")) saveControls.showNewStructure();
 
     // Movimentação do Highlight
-    if (keyboard.down("right") || keyboard.down("D")) highlightVoxel.pushOnX();
-    if (keyboard.down("left") || keyboard.down("A")) highlightVoxel.pullOnX();
-    if (keyboard.down("down") || keyboard.down("S")) highlightVoxel.pushOnZ();
-    if (keyboard.down("up") || keyboard.down("W")) highlightVoxel.pullOnZ();
-    if (keyboard.down("pageup") || keyboard.down("2")) highlightVoxel.pushOnY();
-    if (keyboard.down("pagedown") || keyboard.down("1")) highlightVoxel.pullOnY();
+    if (keyboard.down("right") || keyboard.down("D")) {highlightVoxel.pushOnX(); hightIndicator.updateHightIndicator();}
+    if (keyboard.down("left") || keyboard.down("A")) {highlightVoxel.pullOnX(); hightIndicator.updateHightIndicator();}
+    if (keyboard.down("down") || keyboard.down("S")) {highlightVoxel.pushOnZ(); hightIndicator.updateHightIndicator();}
+    if (keyboard.down("up") || keyboard.down("W")) {highlightVoxel.pullOnZ(); hightIndicator.updateHightIndicator();}
+    if (keyboard.down("pageup") || keyboard.down("2")) {highlightVoxel.pushOnY(); hightIndicator.updateHightIndicator();}
+    if (keyboard.down("pagedown") || keyboard.down("1")) {highlightVoxel.pullOnY(); hightIndicator.updateHightIndicator();}
     if (keyboard.down("Q")) currentBuild.createVoxel();
     if (keyboard.down("E")) currentBuild.removeVoxel();
     if (keyboard.down(".")) currentBuild.nextMaterial();
@@ -420,6 +444,7 @@ function render() {
     renderer.render(scene, camera) // Render scene
 }
 
+hightIndicator.init();
 currentBuild.buildMatrix();
 grid.buildGrid();
 buildInterface();
