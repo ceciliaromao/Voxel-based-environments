@@ -21,7 +21,8 @@ const FLY_FACTOR = .5;
 const SPEED_UP_FACTOR = 2;
 
 let mapaFolder, scene, renderer, camera, light, orbit, keyboard, newStructure, voxelColors, materialsIndex = 0, gui; // Initial variables
-scene = new THREE.Scene();    // Create main scene
+scene = new THREE.Scene(); 
+scene.background = new THREE.Color(0xADD8E6);
 renderer = initRenderer();    // Init a basic renderer
 light = initDefaultBasicLight(scene); // Create a basic light to illuminate the scene
 const orbitCamera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -38,7 +39,7 @@ voxelColors = [
 /* Inicialização das variáveis do controle do personagem */
 let forward = false, backward = false, right = false, left = false, up = false, down = false, speedUp = false;
 const FPCamera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 1000 );
-FPCamera.position.set(0, 50, 0);
+FPCamera.position.set(-100, 25, 175);
 const FPControls = new PointerLockControls(FPCamera, renderer.domElement);
 scene.add(FPControls.getObject());
 const clock = new THREE.Clock();
@@ -83,11 +84,11 @@ scene.add(axesHelper);
 let boxGeometry = new THREE.BoxGeometry(VX, VX, VX);
 const map = {
     land: [],
-    factor: 12,
-    xoff: 0,
-    zoff: 0,
-    divisor1: -.1,
-    divisor2: .5,
+    factor: 19,
+    xoff: 45,
+    zoff: 35,
+    divisor1: -.06,
+    divisor2: .23,
     create: function () {
         for (let x = this.xoff; x <= this.xoff + 35; x++) {
             let line = '|';
@@ -105,7 +106,7 @@ const map = {
                     colort = '\x1b[33m';
                 } else {
                     y = 3;
-                    color = 'chocolate';
+                    color = 'white';
                     colort = '\x1b[0m';
                 }
                 let box =  new THREE.Mesh(boxGeometry, setDefaultMaterial(color));
@@ -114,7 +115,6 @@ const map = {
                 scene.add(box);
                 line += ` ${colort}${noise.perlin2(x/this.factor, z/this.factor).toFixed(1).toString().padStart(4, ' ')} \x1b[0m|`;
             }
-            console.log(line);
         }
     },
     clear: function () {
@@ -133,7 +133,6 @@ const map = {
             for (let z = 1; z <= 35; z++) {
                 line += ` ${noise.perlin2(x/this.factor, z/this.factor)} |`;
             }
-            console.log(line);
         }
     }
 }
@@ -213,15 +212,15 @@ function keyboardUpdate() {
         if (keyboard.pressed("A")) {FPMovement.moveLeft(true)};
         if (keyboard.pressed("S")) {FPMovement.moveBackward(true)};
         if (keyboard.pressed("D")) {FPMovement.moveRight(true)};
-        if (keyboard.pressed("Q")) {FPMovement.moveUp(true)};
-        if (keyboard.pressed("E")) {FPMovement.moveDown(true)};
+        // if (keyboard.pressed("Q")) {FPMovement.moveUp(true)};
+        // if (keyboard.pressed("E")) {FPMovement.moveDown(true)};
         if (keyboard.pressed("shift")) {FPMovement.speedUp(true)};
         if (keyboard.up("W")) {FPMovement.moveForward(false)};
         if (keyboard.up("A")) {FPMovement.moveLeft(false)};
         if (keyboard.up("S")) {FPMovement.moveBackward(false)};
         if (keyboard.up("D")) {FPMovement.moveRight(false)};
-        if (keyboard.up("Q")) {FPMovement.moveUp(false)};
-        if (keyboard.up("E")) {FPMovement.moveDown(false)};
+        // if (keyboard.up("Q")) {FPMovement.moveUp(false)};
+        // if (keyboard.up("E")) {FPMovement.moveDown(false)};
         if (keyboard.up("shift")) {FPMovement.speedUp(false)};
     }
 
@@ -285,4 +284,5 @@ function render() {
 
 buildInterface();
 initOrbitInformation();
+map.create();
 render();
