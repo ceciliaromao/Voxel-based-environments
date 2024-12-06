@@ -57,11 +57,11 @@ highlightVoxel.getObject().add(camera);
 
 const hightIndicator = {
     voxels: [],
-    material: setDefaultMaterial('lightgray'),
+    material: setDefaultMaterial(new THREE.Color(0x90AA90)),
     geometry: new BoxGeometry(VX*1.05, VX*1.05, VX*1.05),
     init: function () {
         this.material.transparent = true;
-        this.material.opacity = .5;
+        this.material.opacity = .4;
     },
     updateHightIndicator: function () {
         let pos = highlightVoxel.getPosition();
