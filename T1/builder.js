@@ -58,7 +58,7 @@ highlightVoxel.getObject().add(camera);
 const hightIndicator = {
     voxels: [],
     material: setDefaultMaterial('lightgray'),
-    geometry: new BoxGeometry(VX, VX, VX),
+    geometry: new BoxGeometry(VX*1.05, VX*1.05, VX*1.05),
     init: function () {
         this.material.transparent = true;
         this.material.opacity = .5;
@@ -80,7 +80,6 @@ const hightIndicator = {
 }
 
 // Objeto em contrução e sua funções
-// window.currentBuild = { // Somente para teste no console, depois mudar para linha baixo
 const currentBuild = {
     /**
      * Matriz contendo os Voxels (classe completa).
@@ -156,7 +155,7 @@ const currentBuild = {
     /**
      * Função chamada pela GUI para alterar o material selecionado
     */
-   previousMaterial: function () {
+    previousMaterial: function () {
         materialsIndex = materialsIndex - 1 == -1 ? materials.length - 1 : materialsIndex - 1;
         highlightVoxel.changeMaterial(lineMaterials[materialsIndex]);
     },
@@ -210,14 +209,14 @@ const currentBuild = {
               }
           }
       }
-  },
-  /**
-   * Cria e retorna todos os Voxels da matriz atual em uma lista
-   * com objetos contendo os campos:
-   * - pos: **objeto** contendo as posições **x**, **y**, **z** do Voxel.
-   * - material: **inteiro** correspondente a um tipo de material. 
-   * @returns 
-   */
+    },
+    /**
+     * Cria e retorna todos os Voxels da matriz atual em uma lista
+     * com objetos contendo os campos:
+     * - pos: **objeto** contendo as posições **x**, **y**, **z** do Voxel.
+     * - material: **inteiro** correspondente a um tipo de material. 
+     * @returns 
+     */
     getData: function () {
       let data = [];
       let voxelsFound = 0; // Contador usado para diminuir o tempo percorrendo a matriz.
@@ -328,7 +327,8 @@ const grid = {
     buildGrid: function () // Criação do grid
     {
         this.array = []; // Reseta o array (Caso necessário)
-        for (let i = 0; i < 10; i++) {
+        // for (let i = 0; i < 10; i++) {
+        for (let i = 0; i < 1; i++) {
             let grid = new THREE.GridHelper(10 * VX, VX);
             grid.translateY(i * VX);
             if (i !== 0) {
