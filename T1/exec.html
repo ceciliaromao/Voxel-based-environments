@@ -5,6 +5,7 @@
 
       <link rel="shortcut icon" href="../favicon.ico">
       <link rel="stylesheet" href="../html/resources/default.css">
+      <link rel="stylesheet" href="../T1/css/menuFirstPerson.css"> 
       <meta name="viewport" content="width=device-width, initial-scale=1">
    </head>
 
@@ -15,6 +16,11 @@
          {"imports": {"three": "../build/three.module.js"}} 
       </script> 
       <script src="../T1/perlin.js"></script>
+      <div id="blocker" class="w3-display-container">
+         <div id="instructions" class="w3-display-middle w3-center w3-white w3-opacity">
+             <p>Clique para voltar</p>
+         </div>
+      </div>
       <div id="webgl-output">     
          <script type="module" src="exec.js"></script>
       </div>

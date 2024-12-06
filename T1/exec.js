@@ -20,8 +20,9 @@ const SPEED = 40;
 const FLY_FACTOR = .5;
 const SPEED_UP_FACTOR = 2;
 
-let mapaFolder, scene, renderer, camera, light, orbit, keyboard, newStructure, voxelColors, materialsIndex = 0, gui; // Initial variables
+let mapaFolder, scene, perspective, renderer, camera, light, orbit, keyboard, newStructure, voxelColors, materialsIndex = 0, gui; // Initial variables
 scene = new THREE.Scene(); 
+perspective = "orbital";
 scene.background = new THREE.Color(0xADD8E6);
 renderer = initRenderer();    // Init a basic renderer
 light = initDefaultBasicLight(scene); // Create a basic light to illuminate the scene
@@ -43,6 +44,31 @@ FPCamera.position.set(-100, 25, 175);
 const FPControls = new PointerLockControls(FPCamera, renderer.domElement);
 scene.add(FPControls.getObject());
 const clock = new THREE.Clock();
+
+const blocker = document.getElementById('blocker');
+const instructions = document.getElementById('instructions');
+instructions.style.display = 'none';
+blocker.style.display = 'none';
+
+instructions.addEventListener('click', function () {
+
+    if (perspective === "firstperson") FPControls.lock();
+
+}, false);
+
+FPControls.addEventListener('lock', function () {
+    instructions.style.display = 'none';
+    blocker.style.display = 'none';
+});
+
+FPControls.addEventListener('unlock', function () {
+    if (perspective === "firstperson"){
+        blocker.style.display = 'block';
+        instructions.style.display = '';
+    }
+});
+
+
 const FPMovement = {
     moveForward: function (value) {
         forward = value;
@@ -171,6 +197,7 @@ function perspectiveChange(){
         //Altera a câmera e prende o mouse
         camera = FPCamera;
         FPControls.lock();
+        perspective = "firstperson";
     } else {
         // CONTROL => ORBIT
 
@@ -181,6 +208,7 @@ function perspectiveChange(){
         mapaFolder.show();
 
         //Altera a câmera e libera o mouse
+        perspective = "orbital";
         camera = orbitCamera;
         FPControls.unlock();
         stopAnyMovement(); //resolve o bug de trocar de perspectiva enquanto pressiona uma tecla faz o personagem andar infinitamente
@@ -196,7 +224,7 @@ function keyboardUpdate() {
         return; 
     }
 
-    if (!FPControls.isLocked) {
+    if (perspective === "orbital") {
         if (keyboard.pressed("Q")) {map.factor++; map.clear(); map.create();};
         if (keyboard.pressed("E")) {map.factor--; map.clear(); map.create();};
         if (keyboard.pressed("up")) {map.divisor1 += 0.01; map.clear(); map.create();};
@@ -207,7 +235,7 @@ function keyboardUpdate() {
         if (keyboard.pressed("W") ) {map.zoff--; map.clear(); map.create();};
         if (keyboard.pressed("D") ) {map.xoff++; map.clear(); map.create();};
         if (keyboard.pressed("A") ) {map.xoff--; map.clear(); map.create();};
-    } else { 
+    } else if (perspective === "firstperson"){ 
         if (keyboard.pressed("W")) {FPMovement.moveForward(true)};
         if (keyboard.pressed("A")) {FPMovement.moveLeft(true)};
         if (keyboard.pressed("S")) {FPMovement.moveBackward(true)};
