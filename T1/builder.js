@@ -13,13 +13,14 @@ import {
 import KeyboardState from '../libs/util/KeyboardState.js';
 import GUI from '../libs/util/dat.gui.module.js'
 import Voxel, { MATERIALS } from './voxel.js'
+import { initRendererWithAntialias } from './renderer.js';
 import { BoxGeometry, Material, Mesh, Vector2, Vector3 } from '../build/three.module.js';
 
 const VX = 10;
 
 let scene, renderer, camera, light, orbit, keyboard, newStructure, cursorPosition, cursorPositionTracker, voxelColors, materialsIndex = 0; // Initial variables
 scene = new THREE.Scene();    // Create main scene
-renderer = initRenderer();    // Init a basic renderer
+renderer = initRendererWithAntialias();    // Init a basic renderer
 light = initDefaultBasicLight(scene); // Create a basic light to illuminate the scene
 camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.position.set(50, 75, 100);

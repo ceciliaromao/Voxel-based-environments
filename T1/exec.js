@@ -13,6 +13,7 @@ import {
 import KeyboardState from '../libs/util/KeyboardState.js';
 import GUI from '../libs/util/dat.gui.module.js'
 import Voxel, { MATERIALS } from './voxel.js'
+import { initRendererWithAntialias } from './renderer.js'; './renderer.js'
 import { Material, Vector2, Vector3 } from '../build/three.module.js';
 
 const VX = 10;
@@ -24,7 +25,7 @@ let mapaFolder, scene, perspective, renderer, camera, light, orbit, keyboard, ne
 scene = new THREE.Scene(); 
 perspective = "orbital";
 scene.background = new THREE.Color(0xADD8E6);
-renderer = initRenderer();    // Init a basic renderer
+renderer = initRendererWithAntialias();    // Init a basic renderer
 light = initDefaultBasicLight(scene); // Create a basic light to illuminate the scene
 const orbitCamera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
 orbitCamera.position.set(150, 225, 300);
