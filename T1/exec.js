@@ -24,8 +24,8 @@ const SPEED_UP_FACTOR = 2;
 let mapaFolder, scene, perspective, renderer, camera, light, orbit, keyboard, newStructure, voxelColors, materialsIndex = 0, gui; // Initial variables
 scene = new THREE.Scene(); 
 perspective = "orbital";
-scene.background = new THREE.Color(0xADD8E6);
-renderer = initRendererWithAntialias();    // Init a basic renderer
+scene.background = new THREE.Color(0xADD8E6); // Cor do fundo
+renderer = initRendererWithAntialias();    // Inicializa renderizador com antialias
 light = initDefaultBasicLight(scene); // Create a basic light to illuminate the scene
 const orbitCamera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
 orbitCamera.position.set(150, 225, 300);
@@ -113,20 +113,42 @@ let axesHelper = new THREE.AxesHelper(12);
 scene.add(axesHelper);
 
 let boxGeometry = new THREE.BoxGeometry(VX, VX, VX);
+/**
+ * Conjunto de varáveis e funções relativas ao mapa
+ */
 const map = {
+    /**Voxels que preenchem o terreno do mapa*/
     land: [],
+    /**
+     * Objetos presentes no mapa.
+     * 
+     * Cada item possui os campos:
+     * 
+     * `main`: {@link THREE.Object3D} pai dos voxels presentes no objeto. Ele é usado para facilitar a criação e a movimentação do objeto no futuro.
+     * 
+     * `voxels`: Lista de {@link Voxel}, classe criada para representar cada voxel possuindo um Mesh e função auxiliares.
+     * }
+    */
     objects: [],
+    /**
+     * Caminho do arquivo e posição dos objetos que serão criados,
+     */
     files: [
         ['arvore-1.json', new Vector3(-110, 20, 40)],
         ['arvore-2.json', new Vector3(90, 20, 130)],
         ['arvore-1.json', new Vector3(90, 20, -90)],
         ['arvore-3.json', new Vector3(-52, 20, -40)]
     ],
-    factor: 19,
-    xoff: 45,
-    zoff: 35,
+    // Os campos factor, xoff, zoff, divisor1, divisor2 são campos usados na calibração do ruído Perlin.
+    factor: 19, // Influência da sensibilidade de mudanças por coordenada (no nosso exemplo funciona como um zoom)
+    xoff: 45, // Offset do ponto de partida em X (no nosso exemplo funciona como uma movimentação no eixo X)
+    zoff: 35, // Offset do ponto de partida em Z (no nosso exemplo funciona como uma movimentação no eixo Z)
+    // Como a função retorna valores de -1 a 1, os campos abaixo indicam as divisões dos alcances que iram aparecer cada tipo de bloco (N0, N1 e N2)
     divisor1: -.06,
     divisor2: .23,
+    /**
+     * Cria o mapa usando a função de ruído Perlin e carrega os arquivos (será mudado no futuro para não carregar o arquivo toda vez que rodar).
+     */
     create: function () {
         for (let x = this.xoff; x <= this.xoff + 35; x++) {
             let line = '|';
@@ -158,32 +180,44 @@ const map = {
             loadFile(file[0], file[1]);
         }
     },
+    /**
+     * Função auxiliar para adicionar um objeto na lista de objetos e posicionar na cena.
+     * @param {*} object 
+     * @param {*} pos 
+     */
     addAndPlaceObject: function (object, pos) {
         this.objects.push(object);
         object.main.position.set(pos.x, pos.y, pos.z);
         scene.add(object.main);
         console.log(object);
     },
+    /**
+     * Limpa a cena.
+     */
     clear: function () {
         for (let box in this.land) {
             scene.remove(this.land[box]);
         }
         this.land = [];
+        for (let object of this.objects) {
+            scene.remove(object.main);
+        }
+        this.objects = [];
     },
+    /**
+     * Função auxiliar para recriar a cena.
+     */
     clearAndCreate: function () {
         this.clear();
         this.create();
-    },
-    printNoise: function () {
-        for (let x = 1; x <= 35; x++) {
-            let line = '|';
-            for (let z = 1; z <= 35; z++) {
-                line += ` ${noise.perlin2(x/this.factor, z/this.factor)} |`;
-            }
-        }
     }
 }
 
+/**
+ * Função que carrega os arquivos e chama função para adicionar na cena.
+ * @param {*} path 
+ * @param {*} pos 
+ */
 function loadFile (path, pos) {
     path = `./assets/${path}`;
     console.log(path);
@@ -233,10 +267,17 @@ function buildInterface() {
     mapaFolder.add(map, 'clear').name("Limpar");
 }
 
+/**
+ * Verifica se o foco está em algum campo de texto.
+ * @returns 
+ */
 function isFocusedOnInput() {
     return document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA';
 }
 
+/**
+ * Muda entre as cameras.
+ */
 function perspectiveChange(){
     if (camera === orbitCamera){
         // ORBIT => CONTROL
@@ -268,6 +309,10 @@ function perspectiveChange(){
     }
 }
 
+/**
+ * Função auxiliar para verificação do teclado.
+ * @returns 
+ */
 function keyboardUpdate() {
 
     keyboard.update();
@@ -278,16 +323,16 @@ function keyboardUpdate() {
     }
 
     if (perspective === "orbital") {
-        if (keyboard.pressed("Q")) {map.factor++; map.clear(); map.create();};
-        if (keyboard.pressed("E")) {map.factor--; map.clear(); map.create();};
-        if (keyboard.pressed("up")) {map.divisor1 += 0.01; map.clear(); map.create();};
-        if (keyboard.pressed("down")) {map.divisor1 -= 0.01; map.clear(); map.create();};
-        if (keyboard.pressed("right")) {map.divisor2 += 0.01; map.clear(); map.create();};
-        if (keyboard.pressed("left")) {map.divisor2 -= 0.01; map.clear(); map.create();};
-        if (keyboard.pressed("S") ) {map.zoff++; map.clear(); map.create();};
-        if (keyboard.pressed("W") ) {map.zoff--; map.clear(); map.create();};
-        if (keyboard.pressed("D") ) {map.xoff++; map.clear(); map.create();};
-        if (keyboard.pressed("A") ) {map.xoff--; map.clear(); map.create();};
+        if (keyboard.pressed("Q")) {map.factor++; map.clearAndCreate()};
+        if (keyboard.pressed("E")) {map.factor--; map.clearAndCreate()};
+        if (keyboard.pressed("up")) {map.divisor1 += 0.01; map.clearAndCreate()};
+        if (keyboard.pressed("down")) {map.divisor1 -= 0.01; map.clearAndCreate()};
+        if (keyboard.pressed("right")) {map.divisor2 += 0.01; map.clearAndCreate()};
+        if (keyboard.pressed("left")) {map.divisor2 -= 0.01; map.clearAndCreate()};
+        if (keyboard.pressed("S") ) {map.zoff++; map.clearAndCreate()};
+        if (keyboard.pressed("W") ) {map.zoff--; map.clearAndCreate()};
+        if (keyboard.pressed("D") ) {map.xoff++; map.clearAndCreate()};
+        if (keyboard.pressed("A") ) {map.xoff--; map.clearAndCreate()};
     } else if (perspective === "firstperson"){ 
         if (keyboard.pressed("W")) {FPMovement.moveForward(true)};
         if (keyboard.pressed("A")) {FPMovement.moveLeft(true)};
@@ -327,7 +372,7 @@ function initControlInformation() {
     let controlInfo = new InfoBox();
     controlInfo.infoBox.id = "ControlInfoBox";
     controlInfo.add("Movimentação: W | A | S | D");
-    controlInfo.add("Voar/pousar:          Q | E");
+    // controlInfo.add("Voar/pousar:          Q | E");
     controlInfo.add("Correr:               SHIFT")
     controlInfo.add("Mudar de perspectiva:     C");
     controlInfo.show();
@@ -335,6 +380,10 @@ function initControlInformation() {
     controlInfo.infoBox.style.whiteSpace = 'pre';
 }
 
+/**
+ * Movimenta o personagem baseado em um delta e nos campos de movimentação ativos.
+ * @param {*} delta 
+ */
 function moveCharacter(delta){
     let speedMultiplier = speedUp? SPEED_UP_FACTOR : 1;
     if (forward) {FPControls.moveForward(SPEED * delta * speedMultiplier)}
@@ -345,6 +394,9 @@ function moveCharacter(delta){
     if (down) {FPControls.getObject().position.y -= SPEED * FLY_FACTOR * delta * speedMultiplier}
 }
 
+/**
+ * Para completamente o personagem.
+ */
 function stopAnyMovement(){
     forward = false;
     backward = false;
