@@ -95,8 +95,6 @@ const FPMovement = {
 }
 /* Fim da inicialização das variáveis do controle do personagem */
 
-// let { materials, lineMaterials } = initMaterials(voxelColors);
-
 // Criando o plano para compor a cena
 let groundPlane = createGroundPlaneXZ(350, 350, 40, 40); // width, height, resolutionW, resolutionH
 scene.add(groundPlane);
@@ -117,6 +115,13 @@ scene.add(axesHelper);
 let boxGeometry = new THREE.BoxGeometry(VX, VX, VX);
 const map = {
     land: [],
+    objects: [],
+    files: [
+        ['arvore-1.json', new Vector3(-110, 20, 40)],
+        ['arvore-2.json', new Vector3(90, 20, 130)],
+        ['arvore-1.json', new Vector3(90, 20, -90)],
+        ['arvore-3.json', new Vector3(-52, 20, -40)]
+    ],
     factor: 19,
     xoff: 45,
     zoff: 35,
@@ -131,24 +136,33 @@ const map = {
                 let colort = null;
                 if (y >= -1 && y < this.divisor1) {
                     y = 1;
-                    color = 'lightgreen';
+                    color = 0x6aa54b;
                     colort = '\x1b[32m';
                 } else if (y >= this.divisor1 && y < this.divisor2) {
                     y = 2;
-                    color = 'darkorange';
+                    color = 0xe19134;
                     colort = '\x1b[33m';
                 } else {
                     y = 3;
-                    color = 'white';
+                    color = 0xe8e8ea;
                     colort = '\x1b[0m';
                 }
                 let box =  new THREE.Mesh(boxGeometry, setDefaultMaterial(color));
                 box.position.set((x - this.xoff - 17) * VX - 5, y * VX - 5, (z - this.zoff - 17) * VX - 5);
                 this.land.push(box);
                 scene.add(box);
-                line += ` ${colort}${noise.perlin2(x/this.factor, z/this.factor).toFixed(1).toString().padStart(4, ' ')} \x1b[0m|`;
+                // line += ` ${colort}${noise.perlin2(x/this.factor, z/this.factor).toFixed(1).toString().padStart(4, ' ')} \x1b[0m|`; // DEBUG
             }
         }
+        for (let file of this.files) {
+            loadFile(file[0], file[1]);
+        }
+    },
+    addAndPlaceObject: function (object, pos) {
+        this.objects.push(object);
+        object.main.position.set(pos.x, pos.y, pos.z);
+        scene.add(object.main);
+        console.log(object);
     },
     clear: function () {
         for (let box in this.land) {
@@ -168,6 +182,38 @@ const map = {
             }
         }
     }
+}
+
+function loadFile (path, pos) {
+    path = `./assets/${path}`;
+    console.log(path);
+    fetch(path)
+    .then(response => {
+        if (!response.ok) {
+        throw new Error(`Erro ao buscar o arquivo: ${response.statusText}`);
+        }
+        return response.text();
+    })
+    .then(data => {
+        let dataJson = JSON.parse(data);
+        let newObject = new THREE.Object3D();
+        let listOfVoxels = []
+        for (let item of dataJson) {
+            let newVoxel = new Voxel(item.pos, item.material, false, true);
+            listOfVoxels.push(newVoxel);
+            newObject.add(newVoxel.getObject());
+        }
+        map.addAndPlaceObject(
+            {
+                main: newObject,
+                voxels: listOfVoxels
+            },
+            pos
+        )
+    })
+    .catch(error => {
+        console.error('Erro:', error);
+    });
 }
 
 
