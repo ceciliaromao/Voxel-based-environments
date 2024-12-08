@@ -13,7 +13,7 @@ import {
 import KeyboardState from '../libs/util/KeyboardState.js';
 import GUI from '../libs/util/dat.gui.module.js'
 import Voxel, { MATERIALS } from './voxel.js'
-import { initRendererWithAntialias } from './renderer.js'; './renderer.js'
+import { initRendererWithAntialias } from './renderer.js';
 import { Material, Vector2, Vector3 } from '../build/three.module.js';
 
 const VX = 10;
@@ -101,8 +101,14 @@ const FPMovement = {
 let groundPlane = createGroundPlaneXZ(350, 350, 40, 40); // width, height, resolutionW, resolutionH
 scene.add(groundPlane);
 
-// Listen window size changes
-window.addEventListener('resize', function () { onWindowResize(camera, renderer) }, false);
+// Corrige distorção na proporção dos objetos
+window.addEventListener('resize', function () {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+});
 
 // Show axes (parameter is size of each axis)
 let axesHelper = new THREE.AxesHelper(12);
