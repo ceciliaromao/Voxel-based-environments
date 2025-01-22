@@ -27,7 +27,7 @@ perspective = "orbital";
 scene.background = new THREE.Color(0xADD8E6); // Cor do fundo
 renderer = initRendererWithAntialias();    // Inicializa renderizador com antialias
 light = initDefaultBasicLight(scene); // Create a basic light to illuminate the scene
-const orbitCamera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+const orbitCamera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2000);
 orbitCamera.position.set(150, 225, 300);
 orbit = new OrbitControls(orbitCamera, renderer.domElement); // Enable mouse rotation, pan, zoom etc.
 camera = orbitCamera;
@@ -96,8 +96,8 @@ const FPMovement = {
 /* Fim da inicialização das variáveis do controle do personagem */
 
 // Criando o plano para compor a cena
-let groundPlane = createGroundPlaneXZ(350, 350, 40, 40); // width, height, resolutionW, resolutionH
-scene.add(groundPlane);
+// let groundPlane = createGroundPlaneXZ(350, 350, 40, 40); // width, height, resolutionW, resolutionH
+// scene.add(groundPlane);
 
 // Corrige distorção na proporção dos objetos
 window.addEventListener('resize', function () {
@@ -137,7 +137,7 @@ const map = {
         ['arvore-1.json', new Vector3(-110, 20, 40)],
         ['arvore-2.json', new Vector3(90, 20, 130)],
         ['arvore-1.json', new Vector3(90, 20, -90)],
-        ['arvore-3.json', new Vector3(-52, 20, -40)]
+        ['arvore-3.json', new Vector3(-52, 20, -40)],
     ],
     // Os campos factor, xoff, zoff, divisor1, divisor2 são campos usados na calibração do ruído Perlin.
     factor: 19, // Influência da sensibilidade de mudanças por coordenada (no nosso exemplo funciona como um zoom)
@@ -146,39 +146,95 @@ const map = {
     // Como a função retorna valores de -1 a 1, os campos abaixo indicam as divisões dos alcances que iram aparecer cada tipo de bloco (N0, N1 e N2)
     divisor1: -.06,
     divisor2: .23,
+    ymultiplier: 15,
+    absolute: false,
+    mapsize: 75,
     /**
      * Cria o mapa usando a função de ruído Perlin e carrega os arquivos (será mudado no futuro para não carregar o arquivo toda vez que rodar).
      */
     create: function () {
-        for (let x = this.xoff; x <= this.xoff + 35; x++) {
+        let voxelsCoordinates = [];
+        //let debuggando = [];
+        for (let x = this.xoff; x <= this.xoff + this.mapsize; x++) {
             let line = '|';
-            for (let z = this.zoff; z <= this.zoff + 35; z++) {
-                let y = noise.perlin2(x/this.factor, z/this.factor);
-                let color = null;
-                let colort = null;
-                if (y >= -1 && y < this.divisor1) {
-                    y = 1;
-                    color = 0x6aa54b;
-                    colort = '\x1b[32m';
-                } else if (y >= this.divisor1 && y < this.divisor2) {
-                    y = 2;
-                    color = 0xe19134;
-                    colort = '\x1b[33m';
-                } else {
-                    y = 3;
-                    color = 0xe8e8ea;
-                    colort = '\x1b[0m';
-                }
-                let box =  new THREE.Mesh(boxGeometry, setDefaultMaterial(color));
-                box.position.set((x - this.xoff - 17) * VX - 5, y * VX - 5, (z - this.zoff - 17) * VX - 5);
-                this.land.push(box);
-                scene.add(box);
+            for (let z = this.zoff; z <= this.zoff + this.mapsize; z++) {
+                //debuggando.push(noise.perlin2(x/this.factor, z/this.factor))
+                //let y = Math.floor(Math.abs(noise.perlin2(x/this.factor, z/this.factor))*this.ymultiplier);
+                let y = Math.floor(noise.perlin2(x/this.factor, z/this.factor)*this.ymultiplier);
+                // if (y + 1 > voxelsCoordinates.y/VX + 5) y--;
+                // if (y - 1 < voxelsCoordinates.y/VX + 5) y++;
+                voxelsCoordinates.push({
+                    x: (x - this.xoff - this.mapsize/2) * VX - 5, 
+                    y: y * VX - 5, 
+                    z: (z - this.zoff - this.mapsize/2) * VX - 5
+                });
+                //let color = null;
+                // let colort = null;
+                // if (y >= -1 && y < this.divisor1) {
+                //     y = 1;
+                //     color = 0x6aa54b;
+                //     colort = '\x1b[32m';
+                // } else if (y >= this.divisor1 && y < this.divisor2) {
+                //     y = 2;
+                //     color = 0xe19134;
+                //     colort = '\x1b[33m';
+                // } else {
+                //     y = 3;
+                //     color = 0xe8e8ea;
+                //     colort = '\x1b[0m';
+                // }
                 // line += ` ${colort}${noise.perlin2(x/this.factor, z/this.factor).toFixed(1).toString().padStart(4, ' ')} \x1b[0m|`; // DEBUG
             }
         }
+
+        let colorDividers = voxelsCoordinates.sort((a,b) => a.y - b.y);
+        //console.log(colorDividers);
+        let voxelChunks = [];
+        let chunkSize = Math.ceil(colorDividers.length/5)
+        for (let index = 0; index < 5; index++) {
+            voxelChunks.push(colorDividers.slice(chunkSize*index, chunkSize*(index+1)));
+        }
+        //console.log(Math.max(voxelsCoordinates.map(e=>e=e.y)), Math.min(voxelsCoordinates.map(e=>e=e.y)),voxelChunks[0].length,voxelChunks[1].length,voxelChunks[2].length,voxelChunks[3].length,voxelChunks[4].length,)
+
+        let myTestColors = [
+            'cornflowerblue',
+            'khaki',
+            'lawngreen',
+            'darkolivegreen',
+            'snow'
+        ];
+
+        let miny = Math.min(...colorDividers.map(e=>e=e.y));
+        let mapMax = Math.max(...colorDividers.map(e=>e=e.x));
+        let mapMin = Math.min(...colorDividers.map(e=>e=e.x))
+
+        voxelChunks.forEach((chunk, index) => {
+            chunk.forEach(coordinate => {
+                if (coordinate.x === mapMax || coordinate.z === mapMax || coordinate.x === mapMin || coordinate.z === mapMin){
+                    for (let i = miny; i <= coordinate.y; i += VX){
+                        let pos = {};
+                        Object.assign(pos, coordinate);
+                        pos.y = i;
+                        console.log(pos, coordinate);
+                        this.setVoxelOnScene(pos, myTestColors[index]);
+                    }
+                } else {
+                    this.setVoxelOnScene(coordinate, myTestColors[index]);
+                }
+            });
+        })
+
         for (let file of this.files) {
             loadFile(file[0], file[1]);
         }
+        //console.log(debuggando);
+    },
+
+    setVoxelOnScene: function (position, color){
+        let box =  new THREE.Mesh(boxGeometry, setDefaultMaterial(color));
+        box.position.set(position.x, position.y, position.z);
+        this.land.push(box);
+        scene.add(box);
     },
     /**
      * Função auxiliar para adicionar um objeto na lista de objetos e posicionar na cena.
