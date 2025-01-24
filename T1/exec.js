@@ -20,27 +20,39 @@ const VX = 10;
 const SPEED = 40;
 const FLY_FACTOR = .5;
 const SPEED_UP_FACTOR = 2;
+const MAP_SIZE = 75;
 
 let mapaFolder, scene, perspective, renderer, camera, light, orbit, keyboard, newStructure, voxelColors, materialsIndex = 0, gui; // Initial variables
 scene = new THREE.Scene(); 
 perspective = "orbital";
 scene.background = new THREE.Color(0xADD8E6); // Cor do fundo
 renderer = initRendererWithAntialias();    // Inicializa renderizador com antialias
-light = initDefaultBasicLight(scene); // Create a basic light to illuminate the scene
-const orbitCamera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 2000);
+//renderer = new THREE.WebGLRenderer();
+renderer.shadowMap.enable = true;
+renderer.shadowMap.type = THREE.VSMShadowMap;
+//light = initDefaultBasicLight(scene); // Create a basic light to illuminate the scene
+const orbitCamera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
 orbitCamera.position.set(150, 225, 300);
 orbit = new OrbitControls(orbitCamera, renderer.domElement); // Enable mouse rotation, pan, zoom etc.
 camera = orbitCamera;
 keyboard = new KeyboardState();
 voxelColors = [
-  'greenyellow',
-  'darkgoldenrod',
-  'darkgreen'
-]
+    'cornflowerblue',
+    'khaki',
+    'forestgreen',
+    'forestgreen',
+    'forestgreen',
+    'darkolivegreen',
+    'darkolivegreen',
+    'darkgray',
+    'gray',
+    'snow'
+];
+
 
 /* Inicialização das variáveis do controle do personagem */
 let forward = false, backward = false, right = false, left = false, up = false, down = false, speedUp = false;
-const FPCamera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 1000 );
+const FPCamera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 600 );
 FPCamera.position.set(-100, 25, 175);
 const FPControls = new PointerLockControls(FPCamera, renderer.domElement);
 scene.add(FPControls.getObject());
@@ -140,98 +152,106 @@ const map = {
         ['arvore-3.json', new Vector3(-52, 20, -40)],
     ],
     // Os campos factor, xoff, zoff, divisor1, divisor2 são campos usados na calibração do ruído Perlin.
-    factor: 19, // Influência da sensibilidade de mudanças por coordenada (no nosso exemplo funciona como um zoom)
-    xoff: 45, // Offset do ponto de partida em X (no nosso exemplo funciona como uma movimentação no eixo X)
-    zoff: 35, // Offset do ponto de partida em Z (no nosso exemplo funciona como uma movimentação no eixo Z)
+    factor: 15, // Influência da sensibilidade de mudanças por coordenada (no nosso exemplo funciona como um zoom)
+    //xoff: 45, // Offset do ponto de partida em X (no nosso exemplo funciona como uma movimentação no eixo X)
+    xoff: Math.random()*50,
+    zoff: Math.random()*50,
+    //zoff: 35, // Offset do ponto de partida em Z (no nosso exemplo funciona como uma movimentação no eixo Z)
     // Como a função retorna valores de -1 a 1, os campos abaixo indicam as divisões dos alcances que iram aparecer cada tipo de bloco (N0, N1 e N2)
     divisor1: -.06,
     divisor2: .23,
     ymultiplier: 15,
     absolute: false,
-    mapsize: 75,
+    sunxmultiplier: .2,
+    sunzmultiplier: .07,
     /**
      * Cria o mapa usando a função de ruído Perlin e carrega os arquivos (será mudado no futuro para não carregar o arquivo toda vez que rodar).
      */
     create: function () {
         let voxelsCoordinates = [];
-        //let debuggando = [];
-        for (let x = this.xoff; x <= this.xoff + this.mapsize; x++) {
+        for (let x = this.xoff; x <= this.xoff + MAP_SIZE; x++) {
             let line = '|';
-            for (let z = this.zoff; z <= this.zoff + this.mapsize; z++) {
-                //debuggando.push(noise.perlin2(x/this.factor, z/this.factor))
+            for (let z = this.zoff; z <= this.zoff + MAP_SIZE; z++) {
                 //let y = Math.floor(Math.abs(noise.perlin2(x/this.factor, z/this.factor))*this.ymultiplier);
                 let y = Math.floor(noise.perlin2(x/this.factor, z/this.factor)*this.ymultiplier);
-                // if (y + 1 > voxelsCoordinates.y/VX + 5) y--;
-                // if (y - 1 < voxelsCoordinates.y/VX + 5) y++;
                 voxelsCoordinates.push({
-                    x: (x - this.xoff - this.mapsize/2) * VX - 5, 
+                    x: (x - this.xoff - MAP_SIZE/2) * VX - 5, 
                     y: y * VX - 5, 
-                    z: (z - this.zoff - this.mapsize/2) * VX - 5
+                    z: (z - this.zoff - MAP_SIZE/2) * VX - 5
                 });
-                //let color = null;
-                // let colort = null;
-                // if (y >= -1 && y < this.divisor1) {
-                //     y = 1;
-                //     color = 0x6aa54b;
-                //     colort = '\x1b[32m';
-                // } else if (y >= this.divisor1 && y < this.divisor2) {
-                //     y = 2;
-                //     color = 0xe19134;
-                //     colort = '\x1b[33m';
-                // } else {
-                //     y = 3;
-                //     color = 0xe8e8ea;
-                //     colort = '\x1b[0m';
-                // }
-                // line += ` ${colort}${noise.perlin2(x/this.factor, z/this.factor).toFixed(1).toString().padStart(4, ' ')} \x1b[0m|`; // DEBUG
             }
         }
 
-        let colorDividers = voxelsCoordinates.sort((a,b) => a.y - b.y);
-        //console.log(colorDividers);
+        voxelsCoordinates.sort((a,b) => a.y - b.y);
         let voxelChunks = [];
-        let chunkSize = Math.ceil(colorDividers.length/5)
-        for (let index = 0; index < 5; index++) {
-            voxelChunks.push(colorDividers.slice(chunkSize*index, chunkSize*(index+1)));
+        let chunkSize = Math.ceil(voxelsCoordinates.length/10)
+        for (let index = 0; index < 10; index++) {
+            voxelChunks.push(voxelsCoordinates.slice(chunkSize*index, chunkSize*(index+1)));
         }
-        //console.log(Math.max(voxelsCoordinates.map(e=>e=e.y)), Math.min(voxelsCoordinates.map(e=>e=e.y)),voxelChunks[0].length,voxelChunks[1].length,voxelChunks[2].length,voxelChunks[3].length,voxelChunks[4].length,)
 
-        let myTestColors = [
-            'cornflowerblue',
-            'khaki',
-            'lawngreen',
-            'darkolivegreen',
-            'snow'
-        ];
+        let miny = Math.min(...voxelsCoordinates.map(e=>e=e.y));
+        let mapMax = Math.max(...voxelsCoordinates.map(e=>e=e.x));
+        let mapMin = Math.min(...voxelsCoordinates.map(e=>e=e.x))
 
-        let miny = Math.min(...colorDividers.map(e=>e=e.y));
-        let mapMax = Math.max(...colorDividers.map(e=>e=e.x));
-        let mapMin = Math.min(...colorDividers.map(e=>e=e.x))
-
+        //TODO: melhorar desempenho não criando voxels internos
         voxelChunks.forEach((chunk, index) => {
             chunk.forEach(coordinate => {
-                if (coordinate.x === mapMax || coordinate.z === mapMax || coordinate.x === mapMin || coordinate.z === mapMin){
+                if (/*coordinate.x === mapMax || coordinate.z === mapMax || coordinate.x === mapMin || coordinate.z === mapMin*/ true){
                     for (let i = miny; i <= coordinate.y; i += VX){
                         let pos = {};
                         Object.assign(pos, coordinate);
                         pos.y = i;
-                        console.log(pos, coordinate);
-                        this.setVoxelOnScene(pos, myTestColors[index]);
+                        //console.log(pos, coordinate);
+                        this.setVoxelOnScene(pos, voxelColors[index]);
                     }
                 } else {
-                    this.setVoxelOnScene(coordinate, myTestColors[index]);
+                    this.setVoxelOnScene(coordinate, voxelColors[index]);
                 }
             });
         })
 
-        for (let file of this.files) {
-            loadFile(file[0], file[1]);
+        //TODO: deixar codigo legivel
+        let lightTam = 200;
+        let dirLight = new THREE.DirectionalLight('lightyellow', 1.5);
+        let dirLightPos = [MAP_SIZE*this.sunxmultiplier, this.ymultiplier, MAP_SIZE*this.sunzmultiplier].map(e=>e=e*VX - 5);
+        dirLight.position.copy(new THREE.Vector3(dirLightPos[0], dirLightPos[1], dirLightPos[2]));
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 512;
+        dirLight.shadow.mapSize.height = 512;
+        dirLight.shadow.camera.near = .1;
+        dirLight.shadow.camera.far = 2000;
+        dirLight.shadow.camera.left = -lightTam;
+        dirLight.shadow.camera.right = lightTam;
+        dirLight.shadow.camera.bottom = -lightTam;
+        dirLight.shadow.camera.top = lightTam;
+        scene.add(dirLight);
+
+        let ambiLight = new THREE.AmbientLight('white', 0.8);
+        scene.add(ambiLight);
+
+        //TODO: criar um pinheiro e uma vitória régia e escolher a arvore de acordo com o y
+        let threeQuantity = Math.floor(((MAP_SIZE/10)*(MAP_SIZE/10)));
+        let threePos = [];
+        for (let i = 0; i < threeQuantity; i++){ 
+            let coordinate;
+            do { coordinate = voxelsCoordinates[Math.floor(Math.random()*voxelsCoordinates.length)]; }
+            while (!!threePos.find(e=>Math.abs(e.x-coordinate.x) < VX || Math.abs(e.z-coordinate.z) < VX));
+            threePos.push(coordinate);
         }
+        threePos.forEach(pos => loadFile(this.files[0][0], new THREE.Vector3(pos.x - 5, pos.y + 5, pos.z - 5)));
+        
+        // for (let file of this.files) {
+        //     loadFile(file[0], file[1]);
+        // }
         //console.log(debuggando);
     },
 
     setVoxelOnScene: function (position, color){
-        let box =  new THREE.Mesh(boxGeometry, setDefaultMaterial(color));
+        let box =  new THREE.Mesh(boxGeometry, new THREE.MeshLambertMaterial({
+            color: color
+        }));
+        box.castShadow = true;
+        box.receiveShadow = true;
         box.position.set(position.x, position.y, position.z);
         this.land.push(box);
         scene.add(box);
@@ -245,7 +265,7 @@ const map = {
         this.objects.push(object);
         object.main.position.set(pos.x, pos.y, pos.z);
         scene.add(object.main);
-        console.log(object);
+        //console.log(object);
     },
     /**
      * Limpa a cena.
@@ -290,6 +310,7 @@ function loadFile (path, pos) {
         let listOfVoxels = []
         for (let item of dataJson) {
             let newVoxel = new Voxel(item.pos, item.material, false, true);
+
             listOfVoxels.push(newVoxel);
             newObject.add(newVoxel.getObject());
         }
@@ -394,15 +415,15 @@ function keyboardUpdate() {
         if (keyboard.pressed("A")) {FPMovement.moveLeft(true)};
         if (keyboard.pressed("S")) {FPMovement.moveBackward(true)};
         if (keyboard.pressed("D")) {FPMovement.moveRight(true)};
-        // if (keyboard.pressed("Q")) {FPMovement.moveUp(true)};
-        // if (keyboard.pressed("E")) {FPMovement.moveDown(true)};
+        if (keyboard.pressed("Q")) {FPMovement.moveUp(true)};
+        if (keyboard.pressed("E")) {FPMovement.moveDown(true)};
         if (keyboard.pressed("shift")) {FPMovement.speedUp(true)};
         if (keyboard.up("W")) {FPMovement.moveForward(false)};
         if (keyboard.up("A")) {FPMovement.moveLeft(false)};
         if (keyboard.up("S")) {FPMovement.moveBackward(false)};
         if (keyboard.up("D")) {FPMovement.moveRight(false)};
-        // if (keyboard.up("Q")) {FPMovement.moveUp(false)};
-        // if (keyboard.up("E")) {FPMovement.moveDown(false)};
+        if (keyboard.up("Q")) {FPMovement.moveUp(false)};
+        if (keyboard.up("E")) {FPMovement.moveDown(false)};
         if (keyboard.up("shift")) {FPMovement.speedUp(false)};
     }
 

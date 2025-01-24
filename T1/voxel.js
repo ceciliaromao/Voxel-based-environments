@@ -25,7 +25,8 @@ export default class Voxel {
             const lineMaterial = new THREE.LineBasicMaterial({ color: color });
             this.cube = new THREE.LineSegments(this.geometry, lineMaterial);
         } else {
-            this.cube = new THREE.Mesh(this.geometry, setDefaultMaterial(color));
+            this.cube = new THREE.Mesh(this.geometry, new THREE.MeshLambertMaterial({color: color}));
+            this.cube.castShadow = true;
         }
         if (worldCoordinates) {
             this.cube.position.set(
