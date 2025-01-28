@@ -184,31 +184,48 @@ const map = {
 
         voxelsCoordinates.sort((a,b) => a.y - b.y);
         let voxelChunks = [];
-        let chunkSize = Math.ceil(voxelsCoordinates.length/10)
-        for (let index = 0; index < 10; index++) {
+        let chunkSize = Math.ceil(voxelsCoordinates.length/voxelColors.length)
+        for (let index = 0; index < voxelColors.length; index++) {
             voxelChunks.push(voxelsCoordinates.slice(chunkSize*index, chunkSize*(index+1)));
         }
 
         let miny = Math.min(...voxelsCoordinates.map(e=>e=e.y));
-        let mapMax = Math.max(...voxelsCoordinates.map(e=>e=e.x));
-        let mapMin = Math.min(...voxelsCoordinates.map(e=>e=e.x))
 
-        //TODO: melhorar desempenho não criando voxels internos
+        let voxelCoordinatesComplete = [];
+        for (let i = 0; i < voxelColors.length; i++){
+            voxelCoordinatesComplete.push([]);
+        }
+
         voxelChunks.forEach((chunk, index) => {
-            chunk.forEach(coordinate => {
-                if (/*coordinate.x === mapMax || coordinate.z === mapMax || coordinate.x === mapMin || coordinate.z === mapMin*/ true){
-                    for (let i = miny; i <= coordinate.y; i += VX){
-                        let pos = {};
-                        Object.assign(pos, coordinate);
-                        pos.y = i;
-                        //console.log(pos, coordinate);
-                        this.setVoxelOnScene(pos, voxelColors[index]);
-                    }
-                } else {
-                    this.setVoxelOnScene(coordinate, voxelColors[index]);
+            chunk.forEach(e => {
+                for (let i = miny; i <= e.y; i++){
+                    voxelCoordinatesComplete[index].push({
+                        x: e.x,
+                        y: i,
+                        z: e.z
+                    });
                 }
             });
         })
+
+        const voxelGeo = new THREE.BoxGeometry(VX, VX, VX);
+        let voxelMat;
+        let instaMesh;
+        let voxelMatrix;
+
+        for (let i = 0; i < voxelColors.length; i++){
+            voxelMat = new THREE.MeshLambertMaterial({ color: voxelColors[i]});
+            instaMesh = new THREE.InstancedMesh(voxelGeo, voxelMat, voxelCoordinatesComplete[i].length);
+            voxelMatrix = new THREE.Matrix4();
+            voxelCoordinatesComplete[i].forEach((e, index) => {
+                const {x, y, z} = e;
+                voxelMatrix.makeTranslation(x, y, z);
+                instaMesh.setMatrixAt(index, voxelMatrix);
+            })
+            instaMesh.castShadow = true;
+            instaMesh.receiveShadow = true;
+            scene.add(instaMesh);
+        }
 
         //TODO: deixar codigo legivel
         let lightTam = 200;
