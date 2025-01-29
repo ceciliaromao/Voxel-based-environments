@@ -15,6 +15,7 @@ import GUI from '../libs/util/dat.gui.module.js'
 import Voxel, { MATERIALS } from './voxel.js'
 import { initRendererWithAntialias } from './renderer.js';
 import { Material, Vector2, Vector3 } from '../build/three.module.js';
+import { GLTFLoader } from '../build/jsm/loaders/GLTFLoader.js'
 
 const VX = 10;
 const SPEED = 40;
@@ -23,7 +24,7 @@ const SPEED_UP_FACTOR = 2;
 const MAP_SIZE = 75;
 
 let mapaFolder, scene, perspective, renderer, camera, light, orbit, keyboard, newStructure, voxelColors, materialsIndex = 0, gui; // Initial variables
-scene = new THREE.Scene(); 
+scene = new THREE.Scene();
 perspective = "orbital";
 scene.background = new THREE.Color(0xADD8E6); // Cor do fundo
 renderer = initRendererWithAntialias();    // Inicializa renderizador com antialias
@@ -164,103 +165,111 @@ const map = {
     absolute: false,
     sunxmultiplier: .2,
     sunzmultiplier: .07,
+    voxelsCoordinates: [],
     /**
      * Cria o mapa usando a função de ruído Perlin e carrega os arquivos (será mudado no futuro para não carregar o arquivo toda vez que rodar).
      */
     create: function () {
-        let voxelsCoordinates = [];
-        for (let x = this.xoff; x <= this.xoff + MAP_SIZE; x++) {
-            let line = '|';
-            for (let z = this.zoff; z <= this.zoff + MAP_SIZE; z++) {
-                //let y = Math.floor(Math.abs(noise.perlin2(x/this.factor, z/this.factor))*this.ymultiplier);
-                let y = Math.floor(noise.perlin2(x/this.factor, z/this.factor)*this.ymultiplier);
-                voxelsCoordinates.push({
-                    x: (x - this.xoff - MAP_SIZE/2) * VX - 5, 
-                    y: y * VX - 5, 
-                    z: (z - this.zoff - MAP_SIZE/2) * VX - 5
-                });
-            }
-        }
-
-        voxelsCoordinates.sort((a,b) => a.y - b.y);
-        let voxelChunks = [];
-        let chunkSize = Math.ceil(voxelsCoordinates.length/voxelColors.length)
-        for (let index = 0; index < voxelColors.length; index++) {
-            voxelChunks.push(voxelsCoordinates.slice(chunkSize*index, chunkSize*(index+1)));
-        }
-
-        let miny = Math.min(...voxelsCoordinates.map(e=>e=e.y));
-
-        let voxelCoordinatesComplete = [];
-        for (let i = 0; i < voxelColors.length; i++){
-            voxelCoordinatesComplete.push([]);
-        }
-
-        voxelChunks.forEach((chunk, index) => {
-            chunk.forEach(e => {
-                for (let i = miny; i <= e.y; i++){
-                    voxelCoordinatesComplete[index].push({
-                        x: e.x,
-                        y: i,
-                        z: e.z
+        return new Promise((resolve) => {
+            for (let x = this.xoff; x <= this.xoff + MAP_SIZE; x++) {
+                let line = '|';
+                for (let z = this.zoff; z <= this.zoff + MAP_SIZE; z++) {
+                    //let y = Math.floor(Math.abs(noise.perlin2(x/this.factor, z/this.factor))*this.ymultiplier);
+                    let y = Math.floor(noise.perlin2(x/this.factor, z/this.factor)*this.ymultiplier);
+                    this.voxelsCoordinates.push({
+                        x: (x - this.xoff - MAP_SIZE/2) * VX - 5, 
+                        y: y * VX - 5, 
+                        z: (z - this.zoff - MAP_SIZE/2) * VX - 5
                     });
                 }
-            });
-        })
+            }
 
-        const voxelGeo = new THREE.BoxGeometry(VX, VX, VX);
-        let voxelMat;
-        let instaMesh;
-        let voxelMatrix;
+            this.voxelsCoordinates.sort((a,b) => a.y - b.y);
+            let voxelChunks = [];
+            let chunkSize = Math.ceil(this.voxelsCoordinates.length/voxelColors.length)
+            for (let index = 0; index < voxelColors.length; index++) {
+                voxelChunks.push(this.voxelsCoordinates.slice(chunkSize*index, chunkSize*(index+1)));
+            }
 
-        for (let i = 0; i < voxelColors.length; i++){
-            voxelMat = new THREE.MeshLambertMaterial({ color: voxelColors[i]});
-            instaMesh = new THREE.InstancedMesh(voxelGeo, voxelMat, voxelCoordinatesComplete[i].length);
-            voxelMatrix = new THREE.Matrix4();
-            voxelCoordinatesComplete[i].forEach((e, index) => {
-                const {x, y, z} = e;
-                voxelMatrix.makeTranslation(x, y, z);
-                instaMesh.setMatrixAt(index, voxelMatrix);
+            let miny = Math.min(...this.voxelsCoordinates.map(e=>e=e.y));
+
+            let voxelCoordinatesComplete = [];
+            for (let i = 0; i < voxelColors.length; i++){
+                voxelCoordinatesComplete.push([]);
+            }
+
+            voxelChunks.forEach((chunk, index) => {
+                chunk.forEach(e => {
+                    for (let i = miny; i <= e.y; i++){
+                        voxelCoordinatesComplete[index].push({
+                            x: e.x,
+                            y: i,
+                            z: e.z
+                        });
+                    }
+                });
             })
-            instaMesh.castShadow = true;
-            instaMesh.receiveShadow = true;
-            scene.add(instaMesh);
-        }
 
-        //TODO: deixar codigo legivel
-        let lightTam = 200;
-        let dirLight = new THREE.DirectionalLight('lightyellow', 1.5);
-        let dirLightPos = [MAP_SIZE*this.sunxmultiplier, this.ymultiplier, MAP_SIZE*this.sunzmultiplier].map(e=>e=e*VX - 5);
-        dirLight.position.copy(new THREE.Vector3(dirLightPos[0], dirLightPos[1], dirLightPos[2]));
-        dirLight.castShadow = true;
-        dirLight.shadow.mapSize.width = 512;
-        dirLight.shadow.mapSize.height = 512;
-        dirLight.shadow.camera.near = .1;
-        dirLight.shadow.camera.far = 2000;
-        dirLight.shadow.camera.left = -lightTam;
-        dirLight.shadow.camera.right = lightTam;
-        dirLight.shadow.camera.bottom = -lightTam;
-        dirLight.shadow.camera.top = lightTam;
-        scene.add(dirLight);
+            const voxelGeo = new THREE.BoxGeometry(VX, VX, VX);
+            let voxelMat;
+            let instaMesh;
+            let voxelMatrix;
 
-        let ambiLight = new THREE.AmbientLight('white', 0.8);
-        scene.add(ambiLight);
+            for (let i = 0; i < voxelColors.length; i++){
+                voxelMat = new THREE.MeshLambertMaterial({ color: voxelColors[i]});
+                instaMesh = new THREE.InstancedMesh(voxelGeo, voxelMat, voxelCoordinatesComplete[i].length);
+                voxelMatrix = new THREE.Matrix4();
+                voxelCoordinatesComplete[i].forEach((e, index) => {
+                    const {x, y, z} = e;
+                    voxelMatrix.makeTranslation(x, y, z);
+                    instaMesh.setMatrixAt(index, voxelMatrix);
+                })
+                instaMesh.castShadow = true;
+                instaMesh.receiveShadow = true;
+                scene.add(instaMesh);
+            }
 
-        //TODO: criar um pinheiro e uma vitória régia e escolher a arvore de acordo com o y
-        let threeQuantity = Math.floor(((MAP_SIZE/10)*(MAP_SIZE/10)));
-        let threePos = [];
-        for (let i = 0; i < threeQuantity; i++){ 
-            let coordinate;
-            do { coordinate = voxelsCoordinates[Math.floor(Math.random()*voxelsCoordinates.length)]; }
-            while (!!threePos.find(e=>Math.abs(e.x-coordinate.x) < VX || Math.abs(e.z-coordinate.z) < VX));
-            threePos.push(coordinate);
-        }
-        threePos.forEach(pos => loadFile(this.files[0][0], new THREE.Vector3(pos.x - 5, pos.y + 5, pos.z - 5)));
-        
-        // for (let file of this.files) {
-        //     loadFile(file[0], file[1]);
-        // }
-        //console.log(debuggando);
+            //TODO: deixar codigo legivel
+            let lightTam = 200;
+            let dirLight = new THREE.DirectionalLight('lightyellow', 1.5);
+            let dirLightPos = [MAP_SIZE*this.sunxmultiplier, this.ymultiplier, MAP_SIZE*this.sunzmultiplier].map(e=>e=e*VX - 5);
+            dirLight.position.copy(new THREE.Vector3(dirLightPos[0], dirLightPos[1], dirLightPos[2]));
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 512;
+            dirLight.shadow.mapSize.height = 512;
+            dirLight.shadow.camera.near = .1;
+            dirLight.shadow.camera.far = 2000;
+            dirLight.shadow.camera.left = -lightTam;
+            dirLight.shadow.camera.right = lightTam;
+            dirLight.shadow.camera.bottom = -lightTam;
+            dirLight.shadow.camera.top = lightTam;
+            scene.add(dirLight);
+
+            let ambiLight = new THREE.AmbientLight('white', 0.8);
+            scene.add(ambiLight);
+
+            //TODO: criar um pinheiro e uma vitória régia e escolher a arvore de acordo com o y
+            let threeQuantity = Math.floor(((MAP_SIZE/10)*(MAP_SIZE/10)));
+            let threePos = [];
+            for (let i = 0; i < threeQuantity; i++){ 
+                let coordinate;
+                do { coordinate = this.voxelsCoordinates[Math.floor(Math.random()*this.voxelsCoordinates.length)]; }
+                while (!!threePos.find(e=>Math.abs(e.x-coordinate.x) < VX || Math.abs(e.z-coordinate.z) < VX));
+                threePos.push(coordinate);
+            }
+            threePos.forEach(pos => loadFile(this.files[0][0], new THREE.Vector3(pos.x - 5, pos.y + 5, pos.z - 5)));
+            
+            // for (let file of this.files) {
+            //     loadFile(file[0], file[1]);
+            // }
+            //console.log(debuggando);
+
+            resolve();
+        })
+    },
+
+    initMap: function() {
+        return this.create();
     },
 
     setVoxelOnScene: function (position, color){
@@ -305,6 +314,41 @@ const map = {
         this.create();
     }
 }
+
+const player = {
+    object: null,
+    scale: new THREE.Vector3(VX/2, VX/2, VX/2),
+
+    loadPlayer: function() {
+        return new Promise((resolve) => {
+            let loader = new GLTFLoader();
+            loader.load(
+                './assets/steve.glb',
+                (gltf) => {
+                    let obj = gltf.scene;
+                    obj.traverse((child) => {
+                        if (child) {
+                            child.castShadow = true;
+                        }
+                    });
+                    this.object = obj;
+                    this.object.scale.copy(this.scale);
+                    scene.add(this.object);
+                    resolve();
+                null, 
+                null
+            });
+        });
+    },
+
+    initPlayer: function() {
+        return this.loadPlayer();
+    },
+
+    setPlayerPosition: function(pos) {
+        this.object.position.copy(pos)
+    }
+};
 
 /**
  * Função que carrega os arquivos e chama função para adicionar na cena.
@@ -509,7 +553,22 @@ function render() {
     renderer.render(scene, camera) // Render scene
 }
 
-buildInterface();
-initOrbitInformation();
-map.create();
+function init() {
+    buildInterface();
+    initOrbitInformation();
+
+    map.initMap().then(() => {
+        let initialY = map.voxelsCoordinates.find(e => e.x === 0 && e.z === 0).y + 14;
+        console.log(initialY);
+        player.initPlayer().then(() => {
+            player.setPlayerPosition(new THREE.Vector3(
+                0,
+                initialY,
+                0
+            ));
+        });
+    });
+}
+
+init();
 render();
