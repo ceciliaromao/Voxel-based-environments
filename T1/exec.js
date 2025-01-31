@@ -1,43 +1,16 @@
 import * as THREE from 'three';
 import { OrbitControls } from '../build/jsm/controls/OrbitControls.js';
-import {PointerLockControls} from '../build/jsm/controls/PointerLockControls.js';
-import {
-    initRenderer,
-    initCamera,
-    initDefaultBasicLight,
-    setDefaultMaterial,
-    InfoBox,
-    onWindowResize,
-    createGroundPlaneXZ
-} from "../libs/util/util.js";
+
 import KeyboardState from '../libs/util/KeyboardState.js';
 import GUI from '../libs/util/dat.gui.module.js'
-import Voxel, { MATERIALS } from './voxel.js'
+import Voxel from './voxel.js'
 import { initRendererWithAntialias } from './renderer.js';
 import { Material, Vector2, Vector3 } from '../build/three.module.js';
 import { GLTFLoader } from '../build/jsm/loaders/GLTFLoader.js'
 
 const VX = 10;
-const SPEED = 40;
-const FLY_FACTOR = .5;
-const SPEED_UP_FACTOR = 2;
 const MAP_SIZE = 74;
-
-let mapaFolder, scene, perspective, renderer, light, orbit, keyboard, newStructure, voxelColors, materialsIndex = 0, gui; // Initial variables
-scene = new THREE.Scene();
-perspective = "orbital";
-scene.background = new THREE.Color(0xADD8E6); // Cor do fundo
-renderer = initRendererWithAntialias();    // Inicializa renderizador com antialias
-//renderer = new THREE.WebGLRenderer();
-renderer.shadowMap.enable = true;
-renderer.shadowMap.type = THREE.VSMShadowMap;
-//light = initDefaultBasicLight(scene); // Create a basic light to illuminate the scene
-const orbitCamera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-orbitCamera.position.set(150, 225, 300);
-orbit = new OrbitControls(orbitCamera, renderer.domElement); // Enable mouse rotation, pan, zoom etc.
-//camera = orbitCamera;
-keyboard = new KeyboardState();
-voxelColors = [
+const VOXEL_COLORS = [
     'cornflowerblue',
     'khaki',
     'forestgreen',
@@ -50,22 +23,31 @@ voxelColors = [
     'snow'
 ];
 
-// Criando o plano para compor a cena
-// let groundPlane = createGroundPlaneXZ(350, 350, 40, 40); // width, height, resolutionW, resolutionH
-// scene.add(groundPlane);
+let scene, perspective, renderer, orbit, keyboard, gui;
+scene = new THREE.Scene();
+perspective = "orbital";
+scene.background = new THREE.Color(0xADD8E6); // Cor do fundo
+renderer = initRendererWithAntialias();    // Inicializa renderizador com antialias
+//renderer = new THREE.WebGLRenderer();
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.VSMShadowMap;
+//light = initDefaultBasicLight(scene); // Create a basic light to illuminate the scene
+const orbitCamera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+orbitCamera.position.set(150, 225, 300);
+orbit = new OrbitControls(orbitCamera, renderer.domElement); // Enable mouse rotation, pan, zoom etc.
+//camera = orbitCamera;
+keyboard = new KeyboardState();
 
-// Corrige distorção na proporção dos objetos
-// window.addEventListener('resize', function () {
-//     camera.aspect = window.innerWidth / window.innerHeight;
-//     camera.updateProjectionMatrix();
 
-//     renderer.setSize(window.innerWidth, window.innerHeight);
-//     renderer.setPixelRatio(window.devicePixelRatio);
-// });
+//Corrige distorção na proporção dos objetos
+window.addEventListener('resize', function () {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
 
-// Show axes (parameter is size of each axis)
-let axesHelper = new THREE.AxesHelper(12);
-scene.add(axesHelper);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+});
+
 
 let boxGeometry = new THREE.BoxGeometry(VX, VX, VX);
 /**
@@ -89,21 +71,22 @@ const map = {
      * Caminho do arquivo e posição dos objetos que serão criados,
      */
     files: [
-        ['arvore-1.json', new Vector3(-110, 20, 40)],
-        ['arvore-2.json', new Vector3(90, 20, 130)],
-        ['arvore-1.json', new Vector3(90, 20, -90)],
-        ['arvore-3.json', new Vector3(-52, 20, -40)],
+        ['arvoreAlga.json', new Vector3(-110, 20, 40)], //CHUNK 0
+        ['arvoreSavana.json', new Vector3(90, 20, 130)], // CHUNKS 1
+        ['arvoreFloresta.json', new Vector3(90, 20, -90)], //CHUNK 2, 3, 4
+        ['arvoreMontanha.json', new Vector3(-52, 20, -40)], //CHUNK 5, 6, 7
+        ['arvoreNeve.json', , new Vector3(-52, 20, -40)] //CHUNK 8
     ],
     // Os campos factor, xoff, zoff, divisor1, divisor2 são campos usados na calibração do ruído Perlin.
-    factor: 15, // Influência da sensibilidade de mudanças por coordenada (no nosso exemplo funciona como um zoom)
+    factor: 18, // Influência da sensibilidade de mudanças por coordenada (no nosso exemplo funciona como um zoom)
     //xoff: 45, // Offset do ponto de partida em X (no nosso exemplo funciona como uma movimentação no eixo X)
-    xoff: 0, //Math.random()*50,
-    zoff: 0, //Math.random()*50,
+    xoff: Math.floor(Math.random()*50), //Math.random()*50,
+    zoff: Math.floor(Math.random()*50), //Math.random()*50,
     //zoff: 35, // Offset do ponto de partida em Z (no nosso exemplo funciona como uma movimentação no eixo Z)
     // Como a função retorna valores de -1 a 1, os campos abaixo indicam as divisões dos alcances que iram aparecer cada tipo de bloco (N0, N1 e N2)
     divisor1: -.06,
     divisor2: .23,
-    ymultiplier: 15,
+    ymultiplier: 20,
     absolute: false,
     sunxmultiplier: .2,
     sunzmultiplier: .07,
@@ -113,6 +96,7 @@ const map = {
     dirLight: null,
     dirLightOffset: new THREE.Vector3(10, 60, -20),
     dirLightTarget: new THREE.Object3D(),
+    lightTam: 200,
     /**
      * Cria o mapa usando a função de ruído Perlin e carrega os arquivos (será mudado no futuro para não carregar o arquivo toda vez que rodar).
      */
@@ -144,15 +128,15 @@ const map = {
             this.voxelsCoordinates.sort((a,b) => a.y - b.y);
             let voxelChunks = [];
             
-            let chunkSize = Math.ceil(this.voxelsCoordinates.length/voxelColors.length)
-            for (let index = 0; index < voxelColors.length; index++) {
+            let chunkSize = Math.ceil(this.voxelsCoordinates.length/VOXEL_COLORS.length)
+            for (let index = 0; index < VOXEL_COLORS.length; index++) {
                 voxelChunks.push(this.voxelsCoordinates.slice(chunkSize*index, chunkSize*(index+1)));
             }
 
             let miny = Math.min(...this.voxelsCoordinates.map(e=>e=e.y));
 
             let voxelCoordinatesComplete = [];
-            for (let i = 0; i < voxelColors.length; i++){
+            for (let i = 0; i < VOXEL_COLORS.length; i++){
                 voxelCoordinatesComplete.push([]);
             }
 
@@ -173,8 +157,8 @@ const map = {
             let instaMesh;
             let voxelMatrix;
 
-            for (let i = 0; i < voxelColors.length; i++){
-                voxelMat = new THREE.MeshLambertMaterial({ color: voxelColors[i]});
+            for (let i = 0; i < VOXEL_COLORS.length; i++){
+                voxelMat = new THREE.MeshLambertMaterial({ color: VOXEL_COLORS[i]});
                 instaMesh = new THREE.InstancedMesh(voxelGeo, voxelMat, voxelCoordinatesComplete[i].length);
                 voxelMatrix = new THREE.Matrix4();
                 voxelCoordinatesComplete[i].forEach((e, index) => {
@@ -189,7 +173,6 @@ const map = {
             }
 
             //TODO: deixar codigo legivel
-            let lightTam = 200;
             this.dirLight = new THREE.DirectionalLight('lightyellow', 1.5);
             this.dirLight.position.copy(this.dirLightOffset);
             this.dirLight.castShadow = true;
@@ -197,10 +180,11 @@ const map = {
             this.dirLight.shadow.mapSize.height = 512;
             this.dirLight.shadow.camera.near = .1;
             this.dirLight.shadow.camera.far = 2000;
-            this.dirLight.shadow.camera.left = -lightTam;
-            this.dirLight.shadow.camera.right = lightTam;
-            this.dirLight.shadow.camera.bottom = -lightTam;
-            this.dirLight.shadow.camera.top = lightTam;
+            this.dirLight.shadow.camera.left = -this.lightTam;
+            this.dirLight.shadow.camera.right = this.lightTam;
+            this.dirLight.shadow.camera.bottom = -this.lightTam;
+            this.dirLight.shadow.camera.top = this.lightTam;
+            this.dirLight.shadow.camera.updateProjectionMatrix();
             //this.dirLight.target = this.dirLightTarget;
             scene.add(this.dirLightTarget);
             scene.add(this.dirLight);
@@ -208,7 +192,11 @@ const map = {
             let ambiLight = new THREE.AmbientLight('white', 0.8);
             scene.add(ambiLight);
 
-            //TODO: criar um pinheiro e uma vitória régia e escolher a arvore de acordo com o y
+            let chunksMaxY = [];
+            for (let i = 0; i < voxelChunks.length; i++){
+                chunksMaxY.push(Math.max(...voxelChunks[i].map(e=>e=e.y)))
+            }
+
             let threeQuantity = Math.floor(((MAP_SIZE/10)*(MAP_SIZE/10)));
             let threePos = [];
             for (let i = 0; i < threeQuantity; i++){ 
@@ -217,9 +205,30 @@ const map = {
                 while (!!threePos.find(e=>Math.abs(e.x-coordinate.x) < VX || Math.abs(e.z-coordinate.z) < VX));
                 threePos.push(coordinate);
             }
-            threePos.forEach(pos => loadFile(this.files[0][0], new THREE.Vector3(pos.x - 5, pos.y + 5, pos.z - 5)));
+            threePos.forEach(pos => {
+                let r = chunksMaxY.findIndex(e => pos.y < e);
+                let fileIndex;
+
+                if (r === 0) fileIndex = 0;
+                if (r === 1) fileIndex = 1;
+                if (r === 2 || r === 3 || r === 4) fileIndex = 2;
+                if (r === 5 || r === 6 || r === 7) fileIndex = 3;
+                if (r === 8 || r === 9 || r === -1) fileIndex = 4;
+
+                loadFile(this.files[fileIndex][0], new THREE.Vector3(pos.x - 5, pos.y + 5, pos.z - 5))
+            });
             resolve(true);
         });
+    },
+
+    setLightTam: function (tam){
+        this.dirLight.shadow.camera.left = -tam;
+        this.dirLight.shadow.camera.right = tam;
+        this.dirLight.shadow.camera.bottom = -tam;
+        this.dirLight.shadow.camera.top = tam;
+        this.dirLight.shadow.camera.updateProjectionMatrix();
+        shadowHelper.update();
+        console.log(this.dirLight.shadow.camera.left);
     },
 
     setVoxelOnScene: function (position, color){
@@ -238,10 +247,19 @@ const map = {
      * @param {*} pos 
      */
     addAndPlaceObject: function (object, pos) {
+
+        // object.voxels.map(e=> e = e.cube.position).forEach(vPos => {
+        //     let auxVector = new THREE.Vector3().copy(pos);
+        //     let auxVector2 = new THREE.Vector3().copy(vPos);
+        //     auxVector.add(auxVector2);
+        //     addVoxelToSet(auxVector.x, auxVector.y, auxVector.z);
+        // })
+
+
         this.objects.push(object);
         object.main.position.set(pos.x, pos.y, pos.z);
         scene.add(object.main);
-        //console.log(object);
+        console.log(object);
     },
     /**
      * Limpa a cena.
@@ -351,6 +369,7 @@ const fogControls = {
     far: 350,
     changeFog: function(){
         scene.fog = new THREE.Fog('darkgray', this.near, this.far)
+        map.setLightTam(this.far*(2/3));
     },
 }
 
@@ -360,62 +379,8 @@ function buildInterface() {
     let fogFolder = gui.addFolder("Fog");
     fogFolder.add(fogControls, "near", 0, 1000).name("Início").onChange(() => fogControls.changeFog());
     fogFolder.add(fogControls, "far", 0, 1000).name("Fim").onChange(() => fogControls.changeFog());
-
-    // gui = new GUI();
-
-    // mapaFolder = gui.addFolder("Mapa");
-
-    // mapaFolder.open();
-    // mapaFolder.add(map, 'factor').name('Fator').onChange(() => map.clearAndCreate());
-    // mapaFolder.add(map, 'xoff').name('XOff').onChange(() => map.clearAndCreate());
-    // mapaFolder.add(map, 'zoff').name('ZOff').onChange(() => map.clearAndCreate());
-    // mapaFolder.add(map, 'divisor1', -1, 1).name('Divisor 1').onChange(() => map.clearAndCreate());
-    // mapaFolder.add(map, 'divisor2', -1, 1).name('Divisor 2').onChange(() => map.clearAndCreate());
-    // mapaFolder.add(map, 'create').name("Criar");
-    // mapaFolder.add(map, 'clear').name("Limpar");
 }
 
-/**
- * Verifica se o foco está em algum campo de texto.
- * @returns 
- */
-function isFocusedOnInput() {
-    return document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA';
-}
-
-/**
- * Muda entre as cameras.
- */
-// function perspectiveChange(){
-//     if (camera === orbitCamera){
-//         // ORBIT => CONTROL
-
-//         //Altera info dos controles
-//         const el = document.getElementById("OrbitInfoBox");
-//         if (el) el.remove();
-//         initControlInformation();
-//         mapaFolder.hide();
-
-//         //Altera a câmera e prende o mouse
-//         camera = FPCamera;
-//         FPControls.lock();
-//         perspective = "firstperson";
-//     } else {
-//         // CONTROL => ORBIT
-
-//         //Altera info dos controles
-//         const el = document.getElementById("ControlInfoBox");
-//         if (el) el.remove();
-//         initOrbitInformation();
-//         mapaFolder.show();
-
-//         //Altera a câmera e libera o mouse
-//         perspective = "orbital";
-//         camera = orbitCamera;
-//         FPControls.unlock();
-//         stopAnyMovement(); //resolve o bug de trocar de perspectiva enquanto pressiona uma tecla faz o personagem andar infinitamente
-//     }
-// }
 
 /**
  * Função auxiliar para verificação do teclado.
@@ -673,7 +638,7 @@ function initiateScene() {
             case 'KeyQ': stopAnyMovement(); break;
             case 'KeyY': invertY(); break;
             case 'KeyC': changePerpective(); break;
-            case 'KeyH': setShadowHelperDisplay(); break;
+            case 'KeyH': shadowHelper.visible = !shadowHelper.visible; break;
             case 'Space': jump(); break;
         }
     });
@@ -701,7 +666,6 @@ function initiateScene() {
 function invertY() {
     //TODO
 }
-
 
 function jump(){
     if (isOnGround(player.object)){
@@ -823,7 +787,6 @@ function animate(){
     const delta = Math.min(clock.getDelta(), 0.1);
     animateCharacter(delta);
     requestAnimationFrame(animate);
-    keyboardUpdate();
     updatePlayer(delta/5);
     updateDirLight();
     //checkLightDirection();
@@ -831,17 +794,18 @@ function animate(){
     updateFpsDisplay();
     //console.log(map.dirLight.position);
     renderer.render(scene, camera);
+    shadowHelper.update();
 }
-
+let shadowHelper;
 async function init() {
     buildInterface();
     //initOrbitInformation();
     await map.create();
-    //let y = map.voxelsCoordinates.find(e => (e.x < VX/2 && e.x > -VX/2) && (e.z < VX/2 && e.z > -VX/2)).y + 14;
+    let y = map.collisionCoordinates.find(e => e.x === 0 && e.z === 0).y;
     player.initPlayer().then(() => {
         player.setPlayerPosition(new THREE.Vector3(
             0,
-            60, //y
+            y*VX + VX,
             0
         ));
         // player.object.rotateY(THREE.MathUtils.degToRad(180));
@@ -860,6 +824,10 @@ async function init() {
         //player.object.add(map.dirLightTarget);
         map.dirLight.target = player.object;
         camera = TPCamera;
+        shadowHelper = new THREE.CameraHelper(map.dirLight.shadow.camera);
+        shadowHelper.visible = true;
+        scene.add(shadowHelper);
+        console.log(occupiedVoxels.size);
         animate();
     });
 }
@@ -872,15 +840,15 @@ init();
 /* TODO
 Prioritário:
 - Colisão nas árvores;
-- Inversão eixo Y;
-- Adicionar outros tipos de árvore já criadas;
-- Voltar com geração prodecedural;
-- Adequar tamanho da sombra de acordo com o fog;
+- Inversão eixo Y; => Não será feita;
+- Adicionar outros tipos de árvore já criadas; => OK!!
+- Voltar com geração prodecedural; => OK!!
+- Adequar tamanho da sombra de acordo com o fog; => OK!!
 
 Não-prioritário:
 - Arrumar o código;
 - Melhorar a colisão;
-- Fix nas sombras se mexendo;
-- Criar árvore pra água e pra montanha;
+- Fix nas sombras se mexendo; => Não será feita;
+- Criar árvore pra água e pra montanha; => OK !!
 - Fix na gambiarra do jump;
 */

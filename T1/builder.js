@@ -29,7 +29,10 @@ keyboard = new KeyboardState();
 voxelColors = [
   'greenyellow',
   'darkgoldenrod',
-  'darkgreen'
+  'darkgreen',
+  'snow',
+  'yellowgreen',
+  'saddlebrown',
 ]
 
 let { materials, lineMaterials } = initMaterials(voxelColors);

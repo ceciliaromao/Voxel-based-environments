@@ -1,0 +1,50 @@
+[
+    {
+        "pos": {
+            "x": 5,
+            "y": 5,
+            "z": 5
+        },
+        "material": "yellowgreen"
+    },
+    {
+        "pos": {
+            "x": -5,
+            "y": 15,
+            "z": -5
+        },
+        "material": "yellowgreen"
+    },
+    {
+        "pos": {
+            "x": -5,
+            "y": 25,
+            "z": 15
+        },
+        "material": "yellowgreen"
+    },
+    {
+        "pos": {
+            "x": 5,
+            "y": 25,
+            "z": -5
+        },
+        "material": "yellowgreen"
+    },
+    {
+        "pos": {
+            "x": 15,
+            "y": 25,
+            "z": 15
+        },
+        "material": "yellowgreen"
+    },
+    {
+        "pos": {
+            "x": 5,
+            "y": 35,
+            "z": 5
+        },
+        "material": "yellowgreen"
+    }
+]
