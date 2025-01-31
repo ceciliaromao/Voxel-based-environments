@@ -1,7 +1,5 @@
 import * as THREE from 'three';
 import { OrbitControls } from '../build/jsm/controls/OrbitControls.js';
-
-import KeyboardState from '../libs/util/KeyboardState.js';
 import GUI from '../libs/util/dat.gui.module.js'
 import Voxel from './voxel.js'
 import { initRendererWithAntialias } from './renderer.js';
@@ -23,20 +21,50 @@ const VOXEL_COLORS = [
     'snow'
 ];
 
-let scene, perspective, renderer, orbit, keyboard, gui;
+//cena
+let scene;
 scene = new THREE.Scene();
-perspective = "orbital";
-scene.background = new THREE.Color(0xADD8E6); // Cor do fundo
-renderer = initRendererWithAntialias();    // Inicializa renderizador com antialias
-//renderer = new THREE.WebGLRenderer();
+scene.background = new THREE.Color(0xADD8E6);
+
+//render
+let renderer;
+renderer = initRendererWithAntialias();
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.VSMShadowMap;
-//light = initDefaultBasicLight(scene); // Create a basic light to illuminate the scene
+let shadowHelper;
+
+//camera e controles
 const orbitCamera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
 orbitCamera.position.set(150, 225, 300);
-orbit = new OrbitControls(orbitCamera, renderer.domElement); // Enable mouse rotation, pan, zoom etc.
-//camera = orbitCamera;
-keyboard = new KeyboardState();
+let orbit = new OrbitControls(orbitCamera, renderer.domElement);
+let camPerspective = "thirdperson";
+let camera;
+let orbControls;
+let TPCamera;
+
+//colisão
+let occupiedVoxels = new Set();
+
+//movimento
+let forwardPressed = false;
+let leftPressed = false;
+let backwardPressed = false;
+let rightPressed = false;
+let auxVector = new THREE.Vector3();
+let playerMoveSpeed = 100;
+const clock = new THREE.Clock();
+
+//fps
+let frameCount = 0;
+let lastTime = performance.now();
+let fps = 0;
+const fpsDisplay = document.createElement('div');
+fpsDisplay.style.position = 'absolute';
+fpsDisplay.style.top = '10px';
+fpsDisplay.style.left = '10px';
+fpsDisplay.style.color = 'white';
+fpsDisplay.style.fontSize = '16px';
+document.body.appendChild(fpsDisplay);
 
 
 //Corrige distorção na proporção dos objetos
@@ -51,7 +79,7 @@ window.addEventListener('resize', function () {
 
 let boxGeometry = new THREE.BoxGeometry(VX, VX, VX);
 /**
- * Conjunto de varáveis e funções relativas ao mapa
+ * Conjunto de varáveis e funções relativas ao mapa e a iluminação
  */
 const map = {
     /**Voxels que preenchem o terreno do mapa*/
@@ -71,11 +99,11 @@ const map = {
      * Caminho do arquivo e posição dos objetos que serão criados,
      */
     files: [
-        ['arvoreAlga.json', new Vector3(-110, 20, 40)], //CHUNK 0
-        ['arvoreSavana.json', new Vector3(90, 20, 130)], // CHUNKS 1
-        ['arvoreFloresta.json', new Vector3(90, 20, -90)], //CHUNK 2, 3, 4
-        ['arvoreMontanha.json', new Vector3(-52, 20, -40)], //CHUNK 5, 6, 7
-        ['arvoreNeve.json', , new Vector3(-52, 20, -40)] //CHUNK 8
+        'arvoreAlga.json',
+        'arvoreSavana.json',
+        'arvoreFloresta.json',
+        'arvoreMontanha.json',
+        'arvoreNeve.json'
     ],
     // Os campos factor, xoff, zoff, divisor1, divisor2 são campos usados na calibração do ruído Perlin.
     factor: 18, // Influência da sensibilidade de mudanças por coordenada (no nosso exemplo funciona como um zoom)
@@ -97,8 +125,9 @@ const map = {
     dirLightOffset: new THREE.Vector3(10, 60, -20),
     dirLightTarget: new THREE.Object3D(),
     lightTam: 200,
+
     /**
-     * Cria o mapa usando a função de ruído Perlin e carrega os arquivos (será mudado no futuro para não carregar o arquivo toda vez que rodar).
+     * Busca as coordenadas dos voxels gerada pela função
      */
     setCoordinates: async function(){
         return new Promise((resolve) => {
@@ -121,7 +150,9 @@ const map = {
             resolve(coordinates);
         });
     },
-
+    /**
+     * Cria o mapa usando a função de ruído Perlin e carrega os arquivos (será mudado no futuro para não carregar o arquivo toda vez que rodar).
+     */
     create: async function () {
         return new Promise(async (resolve) => {
             this.voxelsCoordinates = await this.setCoordinates();
@@ -140,6 +171,7 @@ const map = {
                 voxelCoordinatesComplete.push([]);
             }
 
+            //completa os voxels internos
             voxelChunks.forEach((chunk, index) => {
                 chunk.forEach(e => {
                     for (let i = miny; i <= e.y; i++){
@@ -152,6 +184,7 @@ const map = {
                 });
             })
 
+            //criação da mesh instanciada
             const voxelGeo = new THREE.BoxGeometry(VX, VX, VX);
             let voxelMat;
             let instaMesh;
@@ -172,7 +205,7 @@ const map = {
                 scene.add(instaMesh);
             }
 
-            //TODO: deixar codigo legivel
+            //criação da luz
             this.dirLight = new THREE.DirectionalLight('lightyellow', 1.5);
             this.dirLight.position.copy(this.dirLightOffset);
             this.dirLight.castShadow = true;
@@ -185,13 +218,13 @@ const map = {
             this.dirLight.shadow.camera.bottom = -this.lightTam;
             this.dirLight.shadow.camera.top = this.lightTam;
             this.dirLight.shadow.camera.updateProjectionMatrix();
-            //this.dirLight.target = this.dirLightTarget;
             scene.add(this.dirLightTarget);
             scene.add(this.dirLight);
 
             let ambiLight = new THREE.AmbientLight('white', 0.8);
             scene.add(ambiLight);
 
+            //criação das árvores
             let chunksMaxY = [];
             for (let i = 0; i < voxelChunks.length; i++){
                 chunksMaxY.push(Math.max(...voxelChunks[i].map(e=>e=e.y)))
@@ -215,12 +248,14 @@ const map = {
                 if (r === 5 || r === 6 || r === 7) fileIndex = 3;
                 if (r === 8 || r === 9 || r === -1) fileIndex = 4;
 
-                loadFile(this.files[fileIndex][0], new THREE.Vector3(pos.x - 5, pos.y + 5, pos.z - 5))
+                loadFile(this.files[fileIndex], new THREE.Vector3(pos.x - 5, pos.y + 5, pos.z - 5))
             });
             resolve(true);
         });
     },
-
+    /**
+     * Altera o volume de sombras
+     */
     setLightTam: function (tam){
         this.dirLight.shadow.camera.left = -tam;
         this.dirLight.shadow.camera.right = tam;
@@ -254,7 +289,6 @@ const map = {
         //     auxVector.add(auxVector2);
         //     addVoxelToSet(auxVector.x, auxVector.y, auxVector.z);
         // })
-
 
         this.objects.push(object);
         object.main.position.set(pos.x, pos.y, pos.z);
@@ -375,136 +409,29 @@ const fogControls = {
 
 // Contrói a GUI
 function buildInterface() {
-    gui = new GUI();
+    let gui = new GUI();
     let fogFolder = gui.addFolder("Fog");
     fogFolder.add(fogControls, "near", 0, 1000).name("Início").onChange(() => fogControls.changeFog());
     fogFolder.add(fogControls, "far", 0, 1000).name("Fim").onChange(() => fogControls.changeFog());
 }
 
-
-/**
- * Função auxiliar para verificação do teclado.
- * @returns 
- */
-function keyboardUpdate() {
-
-    keyboard.update();
-
-    // Verificação para não fazer nada se o foco estiver em um campo de entrada
-    // if (isFocusedOnInput()) {
-    //     return; 
-    // }
-
-    // if (perspective === "orbital") {
-        // if (keyboard.pressed("Q")) {map.factor++; map.clearAndCreate()};
-        // if (keyboard.pressed("E")) {map.factor--; map.clearAndCreate()};
-        // if (keyboard.pressed("up")) {map.divisor1 += 0.01; map.clearAndCreate()};
-        // if (keyboard.pressed("down")) {map.divisor1 -= 0.01; map.clearAndCreate()};
-        // if (keyboard.pressed("right")) {map.divisor2 += 0.01; map.clearAndCreate()};
-        // if (keyboard.pressed("left")) {map.divisor2 -= 0.01; map.clearAndCreate()};
-        // if (keyboard.pressed("S") ) {map.zoff++; map.clearAndCreate()};
-        // if (keyboard.pressed("W") ) {map.zoff--; map.clearAndCreate()};
-        // if (keyboard.pressed("D") ) {map.xoff++; map.clearAndCreate()};
-        // if (keyboard.pressed("A") ) {map.xoff--; map.clearAndCreate()};
-    // } else if (perspective === "firstperson"){ 
-    //     if (keyboard.pressed("W")) {FPMovement.moveForward(true)};
-    //     if (keyboard.pressed("A")) {FPMovement.moveLeft(true)};
-    //     if (keyboard.pressed("S")) {FPMovement.moveBackward(true)};
-    //     if (keyboard.pressed("D")) {FPMovement.moveRight(true)};
-    //     if (keyboard.pressed("Q")) {FPMovement.moveUp(true)};
-    //     if (keyboard.pressed("E")) {FPMovement.moveDown(true)};
-    //     if (keyboard.pressed("shift")) {FPMovement.speedUp(true)};
-    //     if (keyboard.up("W")) {FPMovement.moveForward(false)};
-    //     if (keyboard.up("A")) {FPMovement.moveLeft(false)};
-    //     if (keyboard.up("S")) {FPMovement.moveBackward(false)};
-    //     if (keyboard.up("D")) {FPMovement.moveRight(false)};
-    //     if (keyboard.up("Q")) {FPMovement.moveUp(false)};
-    //     if (keyboard.up("E")) {FPMovement.moveDown(false)};
-    //     if (keyboard.up("shift")) {FPMovement.speedUp(false)};
-    // }
+function updateFps(){
+    frameCount++;
+    let currentTime = performance.now();
+    let deltaTime = (currentTime - lastTime) / 1000;
+    if (deltaTime >= 1){
+        fps = frameCount / deltaTime;
+        frameCount = 0;
+        lastTime = currentTime;
+    }
 }
 
-function initOrbitInformation() {
-    let orbitInfo = new InfoBox();
-    orbitInfo.infoBox.id = "OrbitInfoBox";
-    orbitInfo.add("Fator:     Q | E");
-    orbitInfo.add("X Offset:  A | D");
-    orbitInfo.add("Z Offset:  W | S");
-    orbitInfo.add("Divisor 1: ↑ | ↓");
-    orbitInfo.add("Divisor 2: ← | →");
-    orbitInfo.add("Câmera:        C")
-    orbitInfo.show();
-    let infobox = document.getElementById('OrbitInfoBox')
-    infobox.style.fontFamily = 'Courier New, monospace';
-    infobox.style.whiteSpace = 'pre';
+function updateFpsDisplay(){
+    updateFps();
+    fpsDisplay.textContent = `FPS: ${fps.toFixed(2)}`;
 }
 
-function initControlInformation() {
-    let controlInfo = new InfoBox();
-    controlInfo.infoBox.id = "ControlInfoBox";
-    controlInfo.add("Movimentação: W | A | S | D");
-    // controlInfo.add("Voar/pousar:          Q | E");
-    controlInfo.add("Correr:               SHIFT")
-    controlInfo.add("Mudar de perspectiva:     C");
-    controlInfo.show();
-    controlInfo.infoBox.style.fontFamily = 'Courier New, monospace';
-    controlInfo.infoBox.style.whiteSpace = 'pre';
-}
-
-
-
-
-/**
- * Para completamente o personagem.
- */
-function stopAnyMovement(){
-    forwardPressed = false;
-    backwardPressed = false;
-    leftPressed = false;
-    rightPressed = false;
-}
-
-const clock = new THREE.Clock();
-// function animateCharacter(){
-//     var delta = clock.getDelta();
-//     if (isPlayerMoving()){
-//         player.walkAction.paused = false;
-//         player.walkAction.update(delta);
-//     } else { //TODO Resetar para um frame específico
-//         player.walkAction.paused = true;
-//         player.walkAction.time = 1.0;
-//         player.walkAction.update(0);
-//     }
-// }
-
-// function isOnTheGround() {
-//     const playerPosition = player.object.position;
-//     const raycaster = new THREE.Raycaster(playerPosition, new THREE.Vector3(0, -1, 0), 0, VX);
-
-//     for (let i = 0; i < map.instancedMeshes.length; i++){
-//         const intersects = raycaster.intersectObject(map.instancedMeshes[i]);
-
-//         if (intersects.length > 1) return true;
-//     }
-
-//     return false;
-// }
-
-// function applyGravityOnPlayer(){
-//     if (!isOnTheGround()) {
-//         if (player.yvelocity > -5){
-//             player.yvelocity -= .2;
-//         }
-//     } else {
-//         player.yvelocity = 0;
-//     }
-//     player.object.translateY(player.yvelocity);
-// }
-
-/* INICIO DA COLISAO */
-
-
-let occupiedVoxels = new Set();
+/* FUNÇÕES DE COLISÃO */
 
 function addVoxelToSet(x, y, z) {
     let gridX = Math.round(x);
@@ -546,11 +473,22 @@ function getPlayerCollisionPosition(player){
     return center;
 }
 
+/* FIM DAS FUNÇÕES DE COLISÃO */
 
-/* FIM DA COLISAO */
+/* FUNÇÕES DE MOVIMENTO e JOGADOR */
 
 function isPlayerMoving(){
     return forwardPressed || leftPressed || backwardPressed || rightPressed;
+}
+
+/**
+ * Para completamente o personagem.
+ */
+function stopAnyMovement(){
+    forwardPressed = false;
+    backwardPressed = false;
+    leftPressed = false;
+    rightPressed = false;
 }
 
 function animateCharacter(delta){
@@ -559,72 +497,131 @@ function animateCharacter(delta){
     }
 }
 
-let orientation = -1;
-let forwardPressed = false;
-let leftPressed = false;
-let backwardPressed = false;
-let rightPressed = false;
-//let isOnGround = false;
-let TPCamera;
-let pVelocity = new THREE.Vector3();
-let orbControls;
-let gravity = -200;
-let auxVector = new THREE.Vector3();
-let playerMoveSpeed = 100;
-
-/* FPS COUNTER */
-let frameCount = 0;
-let lastTime = performance.now();
-let currentFps;
-let fps = 0;
-
-const fpsDisplay = document.createElement('div');
-fpsDisplay.style.position = 'absolute';
-fpsDisplay.style.top = '10px';
-fpsDisplay.style.left = '10px';
-fpsDisplay.style.color = 'white';
-fpsDisplay.style.fontSize = '16px';
-document.body.appendChild(fpsDisplay);
-
-function updateFps(){
-    frameCount++;
-    let currentTime = performance.now();
-    let deltaTime = (currentTime - lastTime) / 1000;
-    if (deltaTime >= 1){
-        fps = frameCount / deltaTime;
-        frameCount = 0;
-        lastTime = currentTime;
+function jump(){
+    if (isOnGround(player.object)){
+        player.object.translateY(3)
+        player.yvelocity = 1; 
     }
 }
 
-function updateFpsDisplay(){
-    updateFps();
-    fpsDisplay.textContent = `FPS: ${fps.toFixed(2)}`;
+function updatePlayer(delta){
+
+    if (!isOnGround(player.object)) {
+        if (player.yvelocity > -5){
+            player.yvelocity -= .02;
+        }
+    } else {
+        player.yvelocity = 0;
+    }
+    player.object.translateY(player.yvelocity);
+
+    const oldPosition = player.object.position.clone();
+
+    let camAngle = orbControls.getAzimuthalAngle();
+
+    if (forwardPressed){
+        auxVector.set(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), camAngle);
+        if (!isColliding(player.object, auxVector)){
+            player.object.position.addScaledVector(auxVector, playerMoveSpeed * delta);
+        }
+    }
+
+    if (backwardPressed){
+        auxVector.set(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), camAngle);
+        if (!isColliding(player.object, auxVector)){
+            player.object.position.addScaledVector(auxVector, playerMoveSpeed * delta);
+        }
+    }
+
+    if (leftPressed){
+        auxVector.set(-1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), camAngle);
+        if (!isColliding(player.object, auxVector)){
+            player.object.position.addScaledVector(auxVector, playerMoveSpeed * delta);
+        }
+    }
+
+    if (rightPressed){
+        auxVector.set(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), camAngle);
+        if (!isColliding(player.object, auxVector)){
+            player.object.position.addScaledVector(auxVector, playerMoveSpeed * delta);
+        }
+    }
+
+    const direction = player.object.position.clone().sub(oldPosition).normalize();
+
+    if (direction.length() > 0) {
+        const targetRotation = Math.atan2(direction.x, direction.z);
+        const rotationSpeed = 25 * delta;
+        
+        let currentRotation = player.object.rotation.y;
+        let newRotation = THREE.MathUtils.lerp(currentRotation, targetRotation, rotationSpeed);
+
+        if (Math.abs(targetRotation - currentRotation) > Math.PI) {
+            if (targetRotation > currentRotation) {
+                newRotation += Math.PI * 2;
+            } else {
+                newRotation -= Math.PI * 2;
+            }
+            newRotation = THREE.MathUtils.lerp(currentRotation, newRotation, rotationSpeed);
+        }
+
+        player.object.rotation.y = newRotation;
+    }
+
+    player.object.updateMatrixWorld();
+
+    TPCamera.position.sub(orbControls.target);
+    orbControls.target.copy(player.object.position);
+    TPCamera.position.add(player.object.position);
+}
+
+/* FIM FUNÇÕES DE MOVIMENTO e JOGADOR */
+
+function updateDirLight(){
+    map.dirLight.position.copy(player.object.position).add(map.dirLightOffset);
+}
+
+function changePerpective(){
+    console.log(camPerspective)
+    if (camPerspective === "thirdperson"){
+        camPerspective = "orbital";
+        camera = orbitCamera;
+    } else {
+        camPerspective = "thirdperson";
+        camera = TPCamera;
+    }
+}
+
+function animate(){
+    const delta = Math.min(clock.getDelta(), 0.1);
+    animateCharacter(delta);
+    requestAnimationFrame(animate);
+    updatePlayer(delta/5);
+    updateDirLight();
+    orbControls.update();
+    updateFpsDisplay();
+    renderer.render(scene, camera);
 }
 
 function initiateScene() {
     TPCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     
-    // Place the TPCamera behind and above the player at the start
     const initialOffset = new THREE.Vector3(0, 10, -35);
     TPCamera.position.copy(player.object.position).add(initialOffset);
-    TPCamera.lookAt(player.object.position); // Ensure it's looking at the player
+    TPCamera.lookAt(player.object.position);
 
     window.camera = TPCamera;
     orbControls = new OrbitControls(TPCamera, renderer.domElement);
-
-    // Set the camera target correctly
     orbControls.target.copy(player.object.position);
-    
-    // Set OrbitControls limits to prevent flipping
     orbControls.maxPolarAngle = Math.PI / 1.5;
-    orbControls.minPolarAngle = 0.1; // Prevents it from going fully upside downwda
+    orbControls.minPolarAngle = 0.1;
     orbControls.minDistance = 20;
     orbControls.maxDistance = 60;
     orbControls.distance = 40;
 
     orbControls.update();
 
+    //CONTROLES
     window.addEventListener( 'keydown', (event) => {
         switch(event.code){
             case 'KeyW': forwardPressed = true; break;
@@ -660,147 +657,14 @@ function initiateScene() {
         if (event.button === 2) {
             jump();
         }
-      });
+    });
 }
 
-function invertY() {
-    //TODO
-}
-
-function jump(){
-    if (isOnGround(player.object)){
-        player.object.translateY(3)
-        player.yvelocity = 1; 
-    }
-}
-
-function updatePlayer(delta){
-
-    if (!isOnGround(player.object)) {
-        if (player.yvelocity > -5){
-            player.yvelocity -= .02;
-        }
-    } else {
-        player.yvelocity = 0;
-    }
-    player.object.translateY(player.yvelocity);
-
-    const oldPosition = player.object.position.clone();
-
-    //player.object.position.addScaledVector(pVelocity, delta);
-
-    let camAngle = orbControls.getAzimuthalAngle();
-
-    if (forwardPressed){
-        auxVector.set(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), camAngle);
-        if (!isColliding(player.object, auxVector)){
-            player.object.position.addScaledVector(auxVector, playerMoveSpeed * delta);
-        }
-    }
-
-    if (backwardPressed){
-        auxVector.set(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), camAngle);
-        if (!isColliding(player.object, auxVector)){
-            player.object.position.addScaledVector(auxVector, playerMoveSpeed * delta);
-        }
-    }
-
-    if (leftPressed){
-        auxVector.set(-1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), camAngle);
-        if (!isColliding(player.object, auxVector)){
-            player.object.position.addScaledVector(auxVector, playerMoveSpeed * delta);
-        }
-    }
-
-    if (rightPressed){
-        auxVector.set(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), camAngle);
-        if (!isColliding(player.object, auxVector)){
-            player.object.position.addScaledVector(auxVector, playerMoveSpeed * delta);
-        }
-    }
-
-    const direction = player.object.position.clone().sub(oldPosition).normalize();
-
-    // If there's movement, update the rotation to face the direction
-    if (direction.length() > 0) {
-        const targetRotation = Math.atan2(direction.x, direction.z); // Get the rotation around Y axis
-
-        // Smooth rotation using THREE.MathUtils.lerp
-        const rotationSpeed = 25 * delta; // Adjust for smoothness (higher = faster rotation)
-        
-        // Handle angle wrapping to avoid abrupt jumps
-        let currentRotation = player.object.rotation.y;
-        let newRotation = THREE.MathUtils.lerp(currentRotation, targetRotation, rotationSpeed);
-
-        // Ensure the rotation interpolates correctly across the -π to π boundary
-        if (Math.abs(targetRotation - currentRotation) > Math.PI) {
-            if (targetRotation > currentRotation) {
-                newRotation += Math.PI * 2;
-            } else {
-                newRotation -= Math.PI * 2;
-            }
-            newRotation = THREE.MathUtils.lerp(currentRotation, newRotation, rotationSpeed);
-        }
-
-        player.object.rotation.y = newRotation;
-    }
-
-    player.object.updateMatrixWorld();
-
-    TPCamera.position.sub(orbControls.target);
-    orbControls.target.copy(player.object.position);
-    TPCamera.position.add(player.object.position);
-}
-
-function updateDirLight(){
-    map.dirLight.position.copy(player.object.position).add(map.dirLightOffset);
-    //map.dirLightTarget.position.copy(player.object.position.clone());
-}
-
-let prevDir = new THREE.Vector3();
-function checkLightDirection(){
-    const dir = new THREE.Vector3().subVectors(map.dirLight.target.position, player.object.position).normalize();
-    console.log([map.dirLight.target.position, player.object.position]);
-
-    if (!dir.equals(prevDir)){
-        console.log("diferente...")
-        prevDir.copy(dir);
-    }
-
-
-}
-
-let camPerspective = "thirdperson";
-let camera;
-function changePerpective(){
-    console.log(camPerspective)
-    if (camPerspective === "thirdperson"){
-        camPerspective = "orbital";
-        camera = orbitCamera;
-    } else {
-        camPerspective = "thirdperson";
-        camera = TPCamera;
-    }
-}
-
-function animate(){
-    const delta = Math.min(clock.getDelta(), 0.1);
-    animateCharacter(delta);
-    requestAnimationFrame(animate);
-    updatePlayer(delta/5);
-    updateDirLight();
-    //checkLightDirection();
-    orbControls.update();
-    updateFpsDisplay();
-    //console.log(map.dirLight.position);
-    renderer.render(scene, camera);
-    shadowHelper.update();
-}
-let shadowHelper;
 async function init() {
     buildInterface();
-    //initOrbitInformation();
+
     await map.create();
+
     let y = map.collisionCoordinates.find(e => e.x === 0 && e.z === 0).y;
     player.initPlayer().then(() => {
         player.setPlayerPosition(new THREE.Vector3(
@@ -808,30 +672,25 @@ async function init() {
             y*VX + VX,
             0
         ));
-        // player.object.rotateY(THREE.MathUtils.degToRad(180));
-        // player.object.rotateX(THREE.MathUtils.degToRad(180));
-        initiateScene();
-        //console.log(map.collisionCoordinates);
 
-        /*COLISAO*/
+        initiateScene();
+
         map.collisionCoordinates.forEach(e => {
             addVoxelToSet(e.x, e.y, e.z);
         })
-        //console.log(occupiedVoxels);
 
-        /* */
         scene.fog = new THREE.Fog('darkgray', 50, 350)
-        //player.object.add(map.dirLightTarget);
+
         map.dirLight.target = player.object;
+
         camera = TPCamera;
+
         shadowHelper = new THREE.CameraHelper(map.dirLight.shadow.camera);
-        shadowHelper.visible = true;
         scene.add(shadowHelper);
-        console.log(occupiedVoxels.size);
+
         animate();
     });
 }
-
 
 init();
 
