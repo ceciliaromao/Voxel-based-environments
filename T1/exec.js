@@ -5,6 +5,7 @@ import Voxel from './voxel.js'
 import { initRendererWithAntialias } from './renderer.js';
 import { Material, Vector2, Vector3 } from '../build/three.module.js';
 import { GLTFLoader } from '../build/jsm/loaders/GLTFLoader.js'
+import { InfoBox } from "../libs/util/util.js";
 
 const VX = 10;
 const MAP_SIZE = 74;
@@ -43,7 +44,9 @@ let orbControls;
 let TPCamera;
 
 //colisão
-let occupiedVoxels = new Set();
+let occupiedVoxels = new Map();
+let voxelsBBs = [];
+let collisionHelpers = [];
 
 //movimento
 let forwardPressed = false;
@@ -52,6 +55,8 @@ let backwardPressed = false;
 let rightPressed = false;
 let auxVector = new THREE.Vector3();
 let playerMoveSpeed = 100;
+let isJumping = false;
+let playerIntialPos = new THREE.Vector3();
 const clock = new THREE.Clock();
 
 //fps
@@ -145,6 +150,18 @@ const map = {
                         y: y * VX - 5, 
                         z: (z - this.zoff - MAP_SIZE/2) * VX - 5
                     });
+
+                    let vox = new THREE.Mesh(boxGeometry);
+                    vox.position.copy(new Vector3(
+                        (x - this.xoff - MAP_SIZE/2) * VX - 5,
+                        y * VX - 5,
+                        (z - this.zoff - MAP_SIZE/2) * VX - 5));
+                    let voxBb = new THREE.Box3().setFromObject(vox);
+                    voxelsBBs.push(voxBb);
+                    let helper = new THREE.Box3Helper( voxBb, 'red' );
+                    collisionHelpers.push(helper);
+                    scene.add( helper );
+                    helper.visible = false;
                 }
             }
             resolve(coordinates);
@@ -263,7 +280,7 @@ const map = {
         this.dirLight.shadow.camera.top = tam;
         this.dirLight.shadow.camera.updateProjectionMatrix();
         shadowHelper.update();
-        console.log(this.dirLight.shadow.camera.left);
+        //console.log(this.dirLight.shadow.camera.left);
     },
 
     setVoxelOnScene: function (position, color){
@@ -283,17 +300,23 @@ const map = {
      */
     addAndPlaceObject: function (object, pos) {
 
-        // object.voxels.map(e=> e = e.cube.position).forEach(vPos => {
-        //     let auxVector = new THREE.Vector3().copy(pos);
-        //     let auxVector2 = new THREE.Vector3().copy(vPos);
-        //     auxVector.add(auxVector2);
-        //     addVoxelToSet(auxVector.x, auxVector.y, auxVector.z);
-        // })
+        for (let vox of object.voxels){
+            let voxPos = new THREE.Vector3().copy(pos);
+            voxPos.add(vox.cube.position);
+            let obj = new THREE.Mesh(boxGeometry);
+            obj.position.copy(voxPos);
+            let objBB = new THREE.Box3().setFromObject(obj);
+            voxelsBBs.push(objBB);
+            let helper = new THREE.Box3Helper( objBB, 'red' );
+            collisionHelpers.push(helper);
+            scene.add(helper)
+            helper.visible = false;
+        }
 
         this.objects.push(object);
         object.main.position.set(pos.x, pos.y, pos.z);
         scene.add(object.main);
-        console.log(object);
+
     },
     /**
      * Limpa a cena.
@@ -322,6 +345,7 @@ const player = {
     scale: new THREE.Vector3(VX/2, VX/2, VX/2),
     walkAction: null,
     yvelocity: 0,
+    playerBox: null,
 
     loadPlayer: function() {
         return new Promise((resolve) => {
@@ -341,7 +365,7 @@ const player = {
 
                     /* ANIMAÇAO */
                     let localMixer = new THREE.AnimationMixer(this.object);
-                    console.log(gltf.animations);
+                    //console.log(gltf.animations);
                     localMixer.clipAction(gltf.animations[0]).play();
                     this.walkAction = localMixer;
                     resolve();
@@ -357,6 +381,26 @@ const player = {
 
     setPlayerPosition: function(pos) {
         this.object.position.copy(pos)
+        this.createPlayerBbox(pos);
+    },
+
+    //TESTE DE COLISÃO
+    createPlayerBbox: function(pos){
+        let colGeo = new THREE.BoxGeometry(8, 18, 8);
+        this.playerBox = new THREE.Mesh(colGeo);
+        this.playerBox.position.copy(pos).add(new THREE.Vector3(0, 0, 0));;
+        this.pbb = new THREE.Box3().setFromObject(this.playerBox);
+        let phelp = new THREE.Box3Helper( this.pbb, 'green' );
+        collisionHelpers.push(phelp);
+        scene.add( phelp );
+        phelp.visible = false;
+    },
+
+    updateCollisionBox: function(){
+        if(this.playerBox && this.pbb){
+            this.playerBox.position.copy(this.object.position).add(new THREE.Vector3(0, 0, 0));
+            this.pbb.setFromObject(this.playerBox);
+        }
     }
 };
 
@@ -408,6 +452,24 @@ const fogControls = {
 }
 
 // Contrói a GUI
+
+function initControlInformation() {
+    let controlsInfo = new InfoBox();
+    controlsInfo.infoBox.id = "controlsInfoBox";
+    controlsInfo.add("Move:        WASD");
+    controlsInfo.add("Move Alt.:   ↑←↓→");
+    controlsInfo.add("Jump:       Space");
+    controlsInfo.add("Jump Alt.: RClick");
+    controlsInfo.add("Stop:           Q");
+    controlsInfo.add("Coll. Help:     R");
+    controlsInfo.add("Shadow Help:    H");
+    controlsInfo.add("Câmera:         C");
+    controlsInfo.show();
+    let infobox = document.getElementById('controlsInfoBox')
+    infobox.style.fontFamily = 'Courier New, monospace';
+    infobox.style.whiteSpace = 'pre';
+}
+
 function buildInterface() {
     let gui = new GUI();
     let fogFolder = gui.addFolder("Fog");
@@ -433,44 +495,90 @@ function updateFpsDisplay(){
 
 /* FUNÇÕES DE COLISÃO */
 
-function addVoxelToSet(x, y, z) {
-    let gridX = Math.round(x);
-    let gridY = Math.round(y);
-    let gridZ = Math.round(z);
-    occupiedVoxels.add(`${gridX},${gridY},${gridZ}`)
+function setCollisionHelpersVisible(){
+    collisionHelpers.forEach( e => e.visible = !e.visible);
 }
 
-function isOnGround(player){
-    let center = getPlayerCollisionPosition(player)
+function getNearbyVoxels(){
+    const radius = 5; 
+    const nearbyBoxes = [];
 
-    let gridX = Math.round(center.x / 10);
-    if (gridX === 0) gridX = 0;
-    let gridY = Math.round(center.y / 10) - 1;
-    if (gridY === 0) gridY = 0;
-    let gridZ = Math.round(center.z / 10);
-    if (gridZ === 0) gridZ = 0;
+    const playerPos = player.pbb.getCenter(new THREE.Vector3());
+    let px = Math.round(playerPos.x/VX); if (px == 0) px = 0;
+    let py = Math.round(playerPos.y/VX); if (py == 0) py = 0;
+    let pz = Math.round(playerPos.z/VX); if (pz == 0) pz = 0;
+    
+    for (let dx = -radius; dx <= radius; dx += 1) {
+        for (let dz = -radius; dz <= radius; dz += 1) {
+            for (let dy = -radius; dy <= radius; dy += 1) {
+                const key = `${px + dx},${py + dy},${pz + dz}`;
+                if (occupiedVoxels.has(key)) {
+                    nearbyBoxes.push(occupiedVoxels.get(key));
+                }
+            }
+        }
+    }
 
-    return occupiedVoxels.has(`${gridX},${gridY},${gridZ}`);
+    return nearbyBoxes;
 }
 
-function isColliding(player, direction){
-    let center = getPlayerCollisionPosition(player);
 
-    let gridX = Math.round((center.x + direction.x * 5) / 10);
-    if (gridX === 0) gridX = 0;
-    let gridY = Math.round(center.y / 10);
-    if (gridY === 0) gridY = 0;
-    let gridZ = Math.round((center.z + direction.z * 5) / 10);
-    if (gridZ === 0) gridZ = 0;
+function addVoxelToMap(bb) {
+    let center = new THREE.Vector3();
+    bb.getCenter(center);
 
-    return occupiedVoxels.has(`${gridX},${gridY},${gridZ}`);
+    let gridX = Math.round(center.x / VX); if (gridX == 0) gridX = 0;
+    let gridY = Math.round(center.y / VX); if (gridY == 0) gridY = 0;
+    let gridZ = Math.round(center.z / VX); if (gridZ == 0) gridZ = 0;
+    let key = `${gridX},${gridY},${gridZ}`;
+    occupiedVoxels.set(key, bb);
 }
 
-function getPlayerCollisionPosition(player){
-    const collisionBox = new THREE.Box3().setFromObject(player);
-    const center = new THREE.Vector3();
-    collisionBox.getCenter(center);
-    return center;
+function isOnGround(){
+    const playerBox = player.pbb.clone();
+    const nearbyBoxes = getNearbyVoxels();
+
+    const groundCheckBox = playerBox.clone();
+    groundCheckBox.min.y -= 0.1;
+    groundCheckBox.max.y -= 0.1;
+
+    for (let bb of nearbyBoxes) {
+        if (groundCheckBox.intersectsBox(bb)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function clampPlayerToGround() {
+    const playerBox = player.pbb.clone();
+    const nearbyBoxes = getNearbyVoxels();
+
+    for (let bb of nearbyBoxes) {
+        if (playerBox.intersectsBox(bb)) {
+            const playerHeight = playerBox.max.y - playerBox.min.y;
+            player.object.position.y = bb.max.y + playerHeight / 2;
+            player.yvelocity = 0;
+            break;
+        }
+    }
+}
+
+function isColliding(player, direction, delta) {
+    const playerBox = player.pbb.clone();
+    const moveVector = direction.clone().multiplyScalar(playerMoveSpeed * delta);
+    playerBox.translate(moveVector);
+
+    const bufferedBox = playerBox.clone().expandByScalar(-.01);
+
+    const nearbyBoxes = getNearbyVoxels();
+
+    for (let bb of nearbyBoxes) {
+        if (bufferedBox.intersectsBox(bb)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 /* FIM DAS FUNÇÕES DE COLISÃO */
@@ -492,27 +600,32 @@ function stopAnyMovement(){
 }
 
 function animateCharacter(delta){
-    if (isPlayerMoving() || !isOnGround(player.object)){
+    if (isPlayerMoving() || !isOnGround()){
         player.walkAction.update(delta);
     }
 }
 
 function jump(){
-    if (isOnGround(player.object)){
-        player.object.translateY(3)
-        player.yvelocity = 1; 
+    if (isOnGround() && !isJumping) {
+        player.yvelocity = 1;
+        isJumping = true;
     }
 }
 
 function updatePlayer(delta){
 
-    if (!isOnGround(player.object)) {
-        if (player.yvelocity > -5){
-            player.yvelocity -= .02;
+    if (!isOnGround()) {
+        if (player.yvelocity > -5) {
+            player.yvelocity -= 0.02;
         }
     } else {
-        player.yvelocity = 0;
+        if (isJumping) {
+            isJumping = false;
+        } else {
+            clampPlayerToGround();
+        }
     }
+
     player.object.translateY(player.yvelocity);
 
     const oldPosition = player.object.position.clone();
@@ -521,28 +634,28 @@ function updatePlayer(delta){
 
     if (forwardPressed){
         auxVector.set(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), camAngle);
-        if (!isColliding(player.object, auxVector)){
+        if (!isColliding(player, auxVector, delta)){
             player.object.position.addScaledVector(auxVector, playerMoveSpeed * delta);
         }
     }
 
     if (backwardPressed){
         auxVector.set(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), camAngle);
-        if (!isColliding(player.object, auxVector)){
+        if (!isColliding(player, auxVector, delta)){
             player.object.position.addScaledVector(auxVector, playerMoveSpeed * delta);
         }
     }
 
     if (leftPressed){
         auxVector.set(-1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), camAngle);
-        if (!isColliding(player.object, auxVector)){
+        if (!isColliding(player, auxVector, delta)){
             player.object.position.addScaledVector(auxVector, playerMoveSpeed * delta);
         }
     }
 
     if (rightPressed){
         auxVector.set(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), camAngle);
-        if (!isColliding(player.object, auxVector)){
+        if (!isColliding(player, auxVector, delta)){
             player.object.position.addScaledVector(auxVector, playerMoveSpeed * delta);
         }
     }
@@ -570,6 +683,12 @@ function updatePlayer(delta){
 
     player.object.updateMatrixWorld();
 
+    player.updateCollisionBox();
+
+    if (player.object.position.y < -20*VX) {
+        player.object.position.copy(playerIntialPos);
+    }
+
     TPCamera.position.sub(orbControls.target);
     orbControls.target.copy(player.object.position);
     TPCamera.position.add(player.object.position);
@@ -582,7 +701,7 @@ function updateDirLight(){
 }
 
 function changePerpective(){
-    console.log(camPerspective)
+    //console.log(camPerspective)
     if (camPerspective === "thirdperson"){
         camPerspective = "orbital";
         camera = orbitCamera;
@@ -633,9 +752,10 @@ function initiateScene() {
             case 'KeyD': rightPressed = true; break;
             case 'ArrowRight': rightPressed = true; break;
             case 'KeyQ': stopAnyMovement(); break;
-            case 'KeyY': invertY(); break;
+            case 'KeyY': /* invert Y */; break;
             case 'KeyC': changePerpective(); break;
             case 'KeyH': shadowHelper.visible = !shadowHelper.visible; break;
+            case 'KeyR': setCollisionHelpersVisible(); break;
             case 'Space': jump(); break;
         }
     });
@@ -662,22 +782,23 @@ function initiateScene() {
 
 async function init() {
     buildInterface();
+    initControlInformation();
 
     await map.create();
 
     let y = map.collisionCoordinates.find(e => e.x === 0 && e.z === 0).y;
     player.initPlayer().then(() => {
-        player.setPlayerPosition(new THREE.Vector3(
+        playerIntialPos = new THREE.Vector3(
             0,
-            y*VX + VX,
+            y*VX + 2*VX,
             0
-        ));
+        );
+
+        player.setPlayerPosition(playerIntialPos);
 
         initiateScene();
 
-        map.collisionCoordinates.forEach(e => {
-            addVoxelToSet(e.x, e.y, e.z);
-        })
+        voxelsBBs.forEach(bb => addVoxelToMap(bb));
 
         scene.fog = new THREE.Fog('darkgray', 50, 350)
 
@@ -693,21 +814,3 @@ async function init() {
 }
 
 init();
-
-
-
-/* TODO
-Prioritário:
-- Colisão nas árvores;
-- Inversão eixo Y; => Não será feita;
-- Adicionar outros tipos de árvore já criadas; => OK!!
-- Voltar com geração prodecedural; => OK!!
-- Adequar tamanho da sombra de acordo com o fog; => OK!!
-
-Não-prioritário:
-- Arrumar o código;
-- Melhorar a colisão;
-- Fix nas sombras se mexendo; => Não será feita;
-- Criar árvore pra água e pra montanha; => OK !!
-- Fix na gambiarra do jump;
-*/
