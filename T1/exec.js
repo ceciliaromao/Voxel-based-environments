@@ -4,11 +4,15 @@ import GUI from '../libs/util/dat.gui.module.js'
 import Voxel from './voxel.js'
 import { initRendererWithAntialias } from './renderer.js';
 import { Material, Vector2, Vector3 } from '../build/three.module.js';
+import {PointerLockControls} from '../build/jsm/controls/PointerLockControls.js';
 import { GLTFLoader } from '../build/jsm/loaders/GLTFLoader.js'
 import { InfoBox } from "../libs/util/util.js";
 
 const VX = 10;
 const MAP_SIZE = 74;
+const MIN_FOG = 0.1;
+const MAX_FOG = 350;
+const FOG_COLOR = 'darkgray';
 const VOXEL_COLORS = [
     'cornflowerblue',
     'khaki',
@@ -25,7 +29,7 @@ const VOXEL_COLORS = [
 //cena
 let scene;
 scene = new THREE.Scene();
-scene.background = new THREE.Color(0xADD8E6);
+scene.background = new THREE.Color(FOG_COLOR);
 
 //render
 let renderer;
@@ -38,10 +42,38 @@ let shadowHelper;
 const orbitCamera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
 orbitCamera.position.set(150, 225, 300);
 let orbit = new OrbitControls(orbitCamera, renderer.domElement);
-let camPerspective = "thirdperson";
+let perspective = "orbital";
 let camera;
 let orbControls;
 let TPCamera;
+
+const FPCamera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 1000 );
+FPCamera.position.set(-100, 25, 175);
+const FPControls = new PointerLockControls(FPCamera, renderer.domElement);
+scene.add(FPControls.getObject());
+
+const blocker = document.getElementById('blocker');
+const instructions = document.getElementById('instructions');
+instructions.style.display = 'none';
+blocker.style.display = 'none';
+
+instructions.addEventListener('click', function () {
+
+    if (perspective === "firstperson") FPControls.lock();
+
+}, false);
+
+FPControls.addEventListener('lock', function () {
+    instructions.style.display = 'none';
+    blocker.style.display = 'none';
+});
+
+FPControls.addEventListener('unlock', function () {
+    if (perspective === "firstperson"){
+        blocker.style.display = 'block';
+        instructions.style.display = '';
+    }
+});
 
 //colisão
 let occupiedVoxels = new Map();
@@ -54,6 +86,7 @@ let leftPressed = false;
 let backwardPressed = false;
 let rightPressed = false;
 let auxVector = new THREE.Vector3();
+let rightVector = new THREE.Vector3();
 let playerMoveSpeed = 100;
 let isJumping = false;
 let playerIntialPos = new THREE.Vector3();
@@ -111,7 +144,7 @@ const map = {
         'arvoreNeve.json'
     ],
     // Os campos factor, xoff, zoff, divisor1, divisor2 são campos usados na calibração do ruído Perlin.
-    factor: 18, // Influência da sensibilidade de mudanças por coordenada (no nosso exemplo funciona como um zoom)
+    factor: 25, // Influência da sensibilidade de mudanças por coordenada (no nosso exemplo funciona como um zoom)
     //xoff: 45, // Offset do ponto de partida em X (no nosso exemplo funciona como uma movimentação no eixo X)
     xoff: Math.floor(Math.random()*50), //Math.random()*50,
     zoff: Math.floor(Math.random()*50), //Math.random()*50,
@@ -119,7 +152,7 @@ const map = {
     // Como a função retorna valores de -1 a 1, os campos abaixo indicam as divisões dos alcances que iram aparecer cada tipo de bloco (N0, N1 e N2)
     divisor1: -.06,
     divisor2: .23,
-    ymultiplier: 20,
+    ymultiplier: 25,
     absolute: false,
     sunxmultiplier: .2,
     sunzmultiplier: .07,
@@ -226,8 +259,8 @@ const map = {
             this.dirLight = new THREE.DirectionalLight('lightyellow', 1.5);
             this.dirLight.position.copy(this.dirLightOffset);
             this.dirLight.castShadow = true;
-            this.dirLight.shadow.mapSize.width = 512;
-            this.dirLight.shadow.mapSize.height = 512;
+            this.dirLight.shadow.mapSize.width = 256;
+            this.dirLight.shadow.mapSize.height = 256;
             this.dirLight.shadow.camera.near = .1;
             this.dirLight.shadow.camera.far = 2000;
             this.dirLight.shadow.camera.left = -this.lightTam;
@@ -247,7 +280,7 @@ const map = {
                 chunksMaxY.push(Math.max(...voxelChunks[i].map(e=>e=e.y)))
             }
 
-            let threeQuantity = Math.floor(((MAP_SIZE/10)*(MAP_SIZE/10)));
+            let threeQuantity = Math.floor(((MAP_SIZE/15)*(MAP_SIZE/15)));
             let threePos = [];
             for (let i = 0; i < threeQuantity; i++){ 
                 let coordinate;
@@ -349,29 +382,31 @@ const player = {
 
     loadPlayer: function() {
         return new Promise((resolve) => {
-            let loader = new GLTFLoader();
-            loader.load(
-                './assets/steve.glb',
-                (gltf) => {
-                    let obj = gltf.scene;
-                    obj.traverse((child) => {
-                        if (child) {
-                            child.castShadow = true;
-                        }
-                    });
-                    this.object = obj;
-                    this.object.scale.copy(this.scale);
-                    scene.add(this.object);
+            // let loader = new GLTFLoader();
+            // loader.load(
+            //     './assets/steve.glb',
+            //     (gltf) => {
+            //         let obj = gltf.scene;
+            //         obj.traverse((child) => {
+            //             if (child) {
+            //                 child.castShadow = true;
+            //             }
+            //         });
+            //         this.object = obj;
+            //         this.object.scale.copy(this.scale);
+            //         scene.add(this.object);
 
-                    /* ANIMAÇAO */
-                    let localMixer = new THREE.AnimationMixer(this.object);
-                    //console.log(gltf.animations);
-                    localMixer.clipAction(gltf.animations[0]).play();
-                    this.walkAction = localMixer;
-                    resolve();
-                null, 
-                null
-            });
+            //         /* ANIMAÇAO */
+            //         let localMixer = new THREE.AnimationMixer(this.object);
+            //         //console.log(gltf.animations);
+            //         localMixer.clipAction(gltf.animations[0]).play();
+            //         this.walkAction = localMixer;
+            //         resolve();
+            //     null, 
+            //     null
+            // });
+            this.object = new THREE.Object3D();
+            resolve();
         });
     },
 
@@ -443,10 +478,17 @@ function loadFile (path, pos) {
 }
 
 const fogControls = {
-    near: 50,
+    near: 0,
     far: 350,
     changeFog: function(){
-        scene.fog = new THREE.Fog('darkgray', this.near, this.far)
+        scene.fog = new THREE.Fog(FOG_COLOR, this.near, this.far)
+        map.setLightTam(this.far*(2/3));
+    },
+    disableFog: function(){
+        scene.fog = new THREE.Fog(FOG_COLOR, .1, 10000);
+    },
+    enableFog: function(){
+        scene.fog = new THREE.Fog(FOG_COLOR, .1, 350)
         map.setLightTam(this.far*(2/3));
     },
 }
@@ -473,7 +515,7 @@ function initControlInformation() {
 function buildInterface() {
     let gui = new GUI();
     let fogFolder = gui.addFolder("Fog");
-    fogFolder.add(fogControls, "near", 0, 1000).name("Início").onChange(() => fogControls.changeFog());
+    //fogFolder.add(fogControls, "near", 0, 1000).name("Início").onChange(() => fogControls.changeFog());
     fogFolder.add(fogControls, "far", 0, 1000).name("Fim").onChange(() => fogControls.changeFog());
 }
 
@@ -607,7 +649,7 @@ function animateCharacter(delta){
 
 function jump(){
     if (isOnGround() && !isJumping) {
-        player.yvelocity = 1;
+        player.yvelocity = 0.9;
         isJumping = true;
     }
 }
@@ -616,7 +658,7 @@ function updatePlayer(delta){
 
     if (!isOnGround()) {
         if (player.yvelocity > -5) {
-            player.yvelocity -= 0.02;
+            player.yvelocity -= 0.03;
         }
     } else {
         if (isJumping) {
@@ -628,57 +670,37 @@ function updatePlayer(delta){
 
     player.object.translateY(player.yvelocity);
 
-    const oldPosition = player.object.position.clone();
-
-    let camAngle = orbControls.getAzimuthalAngle();
-
-    if (forwardPressed){
-        auxVector.set(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), camAngle);
-        if (!isColliding(player, auxVector, delta)){
+    camera.getWorldDirection(auxVector);
+    auxVector.y = 0; // Ignore vertical component
+    auxVector.normalize(); // Ensure it's a unit vector
+    
+    let rightVector = new THREE.Vector3();
+    rightVector.crossVectors(auxVector, new THREE.Vector3(0, 1, 0)).normalize(); // Right direction
+    
+    if (forwardPressed) {
+        if (!isColliding(player, auxVector, delta)) {
             player.object.position.addScaledVector(auxVector, playerMoveSpeed * delta);
         }
     }
-
-    if (backwardPressed){
-        auxVector.set(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), camAngle);
-        if (!isColliding(player, auxVector, delta)){
-            player.object.position.addScaledVector(auxVector, playerMoveSpeed * delta);
+    
+    if (backwardPressed) {
+        let backwardVector = auxVector.clone().negate();
+        if (!isColliding(player, backwardVector, delta)) {
+            player.object.position.addScaledVector(backwardVector, playerMoveSpeed * delta);
         }
     }
-
-    if (leftPressed){
-        auxVector.set(-1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), camAngle);
-        if (!isColliding(player, auxVector, delta)){
-            player.object.position.addScaledVector(auxVector, playerMoveSpeed * delta);
+    
+    if (leftPressed) {
+        let leftVector = rightVector.clone().negate();
+        if (!isColliding(player, leftVector, delta)) {
+            player.object.position.addScaledVector(leftVector, playerMoveSpeed * delta);
         }
     }
-
-    if (rightPressed){
-        auxVector.set(1, 0, 0).applyAxisAngle(new THREE.Vector3(0, 1, 0), camAngle);
-        if (!isColliding(player, auxVector, delta)){
-            player.object.position.addScaledVector(auxVector, playerMoveSpeed * delta);
+    
+    if (rightPressed) {
+        if (!isColliding(player, rightVector, delta)) {
+            player.object.position.addScaledVector(rightVector, playerMoveSpeed * delta);
         }
-    }
-
-    const direction = player.object.position.clone().sub(oldPosition).normalize();
-
-    if (direction.length() > 0) {
-        const targetRotation = Math.atan2(direction.x, direction.z);
-        const rotationSpeed = 25 * delta;
-        
-        let currentRotation = player.object.rotation.y;
-        let newRotation = THREE.MathUtils.lerp(currentRotation, targetRotation, rotationSpeed);
-
-        if (Math.abs(targetRotation - currentRotation) > Math.PI) {
-            if (targetRotation > currentRotation) {
-                newRotation += Math.PI * 2;
-            } else {
-                newRotation -= Math.PI * 2;
-            }
-            newRotation = THREE.MathUtils.lerp(currentRotation, newRotation, rotationSpeed);
-        }
-
-        player.object.rotation.y = newRotation;
     }
 
     player.object.updateMatrixWorld();
@@ -689,9 +711,39 @@ function updatePlayer(delta){
         player.object.position.copy(playerIntialPos);
     }
 
-    TPCamera.position.sub(orbControls.target);
-    orbControls.target.copy(player.object.position);
-    TPCamera.position.add(player.object.position);
+    FPCamera.position.copy(player.object.position);
+}
+
+function changePerspective(){
+
+    if (camera === orbitCamera){
+        // ORBIT => CONTROL
+
+        fogControls.enableFog();
+
+        //Altera info dos controles
+        const el = document.getElementById("OrbitInfoBox");
+        if (el) el.remove();
+
+        //Altera a câmera e prende o mouse
+        camera = FPCamera;
+        FPControls.lock();
+        perspective = "firstperson";
+    } else {
+        // CONTROL => ORBIT
+
+        fogControls.disableFog();
+
+        //Altera info dos controles
+        const el = document.getElementById("ControlInfoBox");
+        if (el) el.remove();
+
+        //Altera a câmera e libera o mouse
+        perspective = "orbital";
+        camera = orbitCamera;
+        FPControls.unlock();
+        stopAnyMovement(); //resolve o bug de trocar de perspectiva enquanto pressiona uma tecla faz o personagem andar infinitamente
+    }
 }
 
 /* FIM FUNÇÕES DE MOVIMENTO e JOGADOR */
@@ -700,45 +752,16 @@ function updateDirLight(){
     map.dirLight.position.copy(player.object.position).add(map.dirLightOffset);
 }
 
-function changePerpective(){
-    //console.log(camPerspective)
-    if (camPerspective === "thirdperson"){
-        camPerspective = "orbital";
-        camera = orbitCamera;
-    } else {
-        camPerspective = "thirdperson";
-        camera = TPCamera;
-    }
-}
-
 function animate(){
     const delta = Math.min(clock.getDelta(), 0.1);
-    animateCharacter(delta);
     requestAnimationFrame(animate);
     updatePlayer(delta/5);
     updateDirLight();
-    orbControls.update();
     updateFpsDisplay();
     renderer.render(scene, camera);
 }
 
 function initiateScene() {
-    TPCamera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    
-    const initialOffset = new THREE.Vector3(0, 10, -35);
-    TPCamera.position.copy(player.object.position).add(initialOffset);
-    TPCamera.lookAt(player.object.position);
-
-    window.camera = TPCamera;
-    orbControls = new OrbitControls(TPCamera, renderer.domElement);
-    orbControls.target.copy(player.object.position);
-    orbControls.maxPolarAngle = Math.PI / 1.5;
-    orbControls.minPolarAngle = 0.1;
-    orbControls.minDistance = 20;
-    orbControls.maxDistance = 60;
-    orbControls.distance = 40;
-
-    orbControls.update();
 
     //CONTROLES
     window.addEventListener( 'keydown', (event) => {
@@ -753,7 +776,7 @@ function initiateScene() {
             case 'ArrowRight': rightPressed = true; break;
             case 'KeyQ': stopAnyMovement(); break;
             case 'KeyY': /* invert Y */; break;
-            case 'KeyC': changePerpective(); break;
+            case 'KeyC': changePerspective(); break;
             case 'KeyH': shadowHelper.visible = !shadowHelper.visible; break;
             case 'KeyR': setCollisionHelpersVisible(); break;
             case 'Space': jump(); break;
@@ -800,14 +823,17 @@ async function init() {
 
         voxelsBBs.forEach(bb => addVoxelToMap(bb));
 
-        scene.fog = new THREE.Fog('darkgray', 50, 350)
+        scene.fog = new THREE.Fog(FOG_COLOR, MIN_FOG, MAX_FOG);
+        scene.fog.inten
 
         map.dirLight.target = player.object;
 
-        camera = TPCamera;
+        camera = FPCamera;
 
         shadowHelper = new THREE.CameraHelper(map.dirLight.shadow.camera);
+        shadowHelper.visible = false;
         scene.add(shadowHelper);
+        changePerspective();
 
         animate();
     });
