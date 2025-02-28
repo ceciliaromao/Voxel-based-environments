@@ -16,8 +16,8 @@ export const MATERIALS = {
 }
 
 export default class Voxel {
-    constructor(pos = {x: 0, y: 0, z: 0}, color, wireframe = false, worldCoordinates = false){
-        this.color = color;
+    constructor(pos = {x: 0, y: 0, z: 0}, texture, wireframe = false, worldCoordinates = false){
+        this.color = 'white';
         this.wireframe = wireframe;
         this.geometry = new THREE.BoxGeometry(1*VX, 1*VX, 1*VX);
         if (wireframe){ 
@@ -25,7 +25,8 @@ export default class Voxel {
             const lineMaterial = new THREE.LineBasicMaterial({ color: color });
             this.cube = new THREE.LineSegments(this.geometry, lineMaterial);
         } else {
-            this.cube = new THREE.Mesh(this.geometry, new THREE.MeshLambertMaterial({color: color}));
+            //this.cube = new THREE.Mesh(this.geometry, new THREE.MeshLambertMaterial({color: color}));
+            this.cube = new THREE.Mesh(this.geometry, texture);
             this.cube.castShadow = true;
         }
         if (worldCoordinates) {

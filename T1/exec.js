@@ -7,24 +7,55 @@ import { Material, Vector2, Vector3 } from '../build/three.module.js';
 import {PointerLockControls} from '../build/jsm/controls/PointerLockControls.js';
 import { GLTFLoader } from '../build/jsm/loaders/GLTFLoader.js'
 import { InfoBox } from "../libs/util/util.js";
+import {initRenderer} from "../libs/util/util.js";
 
 const VX = 10;
-const MAP_SIZE = 74;
+const MAP_SIZE = 100;
 const MIN_FOG = 0.1;
 const MAX_FOG = 350;
 const FOG_COLOR = 'darkgray';
 const VOXEL_COLORS = [
     'cornflowerblue',
     'khaki',
-    'forestgreen',
-    'forestgreen',
-    'forestgreen',
+    '#5E9D34',
+    '#5E9D34',
+    '#5E9D34',
     'darkolivegreen',
     'darkolivegreen',
     'darkgray',
     'gray',
     'snow'
 ];
+const TEXTURES_NAMES = [
+    "gravel",
+    "sand",
+    "grass_block_top",
+    "grass_block_top",
+    "grass_block_top",
+    "coarse_dirt",
+    "coarse_dirt",
+    "stone",
+    "cobblestone",
+    "snow",
+    "dirt",
+    "dirt_path_side",
+    "dirt_path_top",
+    "grass_block_side",
+    "smooth_stone_slab_side",
+    "ice",
+    "blue_ice",
+    "acacia_leaves",
+    "acacia_log",
+    "azalea_leaves",
+    "bamboo_large_leaves",
+    "birch_leaves",
+    "dark_oak_log",
+    "dark_oak_leaves",
+    "flowering_azalea_leaves",
+    "oak_log",
+]
+const TEXTURES_PATH = "./assets/textures/";
+const TEXTURES = [];
 
 //cena
 let scene;
@@ -34,6 +65,8 @@ scene.background = new THREE.Color(FOG_COLOR);
 //render
 let renderer;
 renderer = initRendererWithAntialias();
+//renderer = initRenderer();
+//renderer.logarithmicDepthBuffer = true;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.VSMShadowMap;
 let shadowHelper;
@@ -214,22 +247,24 @@ const map = {
                 voxelChunks.push(this.voxelsCoordinates.slice(chunkSize*index, chunkSize*(index+1)));
             }
 
-            let miny = Math.min(...this.voxelsCoordinates.map(e=>e=e.y));
+            let minySand = Math.min(...voxelChunks[1].map(e=>e=e.y));
+            //let miny = Math.min(...this.voxelsCoordinates.map(e=>e=e.y));
 
             let voxelCoordinatesComplete = [];
             for (let i = 0; i < VOXEL_COLORS.length; i++){
                 voxelCoordinatesComplete.push([]);
             }
 
+
             //completa os voxels internos
             voxelChunks.forEach((chunk, index) => {
                 chunk.forEach(e => {
-                    for (let i = miny; i <= e.y; i++){
+                    for (let i = 0; i < 3; i++){
                         voxelCoordinatesComplete[index].push({
                             x: e.x,
-                            y: i,
+                            y: e.y - i*VX,
                             z: e.z
-                        });
+                        })
                     }
                 });
             })
@@ -240,8 +275,44 @@ const map = {
             let instaMesh;
             let voxelMatrix;
 
+            //adiciona voxels de água
+            let waterCoordinates = [];
+
+            voxelChunks[0].forEach(coordinate => {
+                waterCoordinates.push({
+                    x: coordinate.x,
+                    y: minySand,
+                    z: coordinate.z
+                });
+            })
+
+            let waterMat = [null,null,setMaterial(16),setMaterial(16)];
+            waterMat[2].transparent = waterMat[3].transparent = true;
+            waterMat[2].opacity = waterMat[3].opacity = 0.5;
+            let waterInstaMesh = new THREE.InstancedMesh(voxelGeo, waterMat, waterCoordinates.length);
+            let waterMatrix = new THREE.Matrix4();
+            waterCoordinates.forEach((e, index) => {
+                const {x , y, z} = e;
+                waterMatrix.makeTranslation(x, y, z);
+                waterInstaMesh.setMatrixAt(index, waterMatrix);
+            })
+            scene.add(waterInstaMesh);
+
+
+
+            /*
+                1: água
+                2: areia
+                3,4,5: terra + grama
+                6,7: gravel (trocar posteriormente)
+                8: pedra
+                9: outra pedra
+                10: neve
+            */
+
             for (let i = 0; i < VOXEL_COLORS.length; i++){
-                voxelMat = new THREE.MeshLambertMaterial({ color: VOXEL_COLORS[i]});
+                voxelMat = setMaterial(i);
+                //voxelMat = new THREE.MeshLambertMaterial({ color: VOXEL_COLORS[i] })
                 instaMesh = new THREE.InstancedMesh(voxelGeo, voxelMat, voxelCoordinatesComplete[i].length);
                 voxelMatrix = new THREE.Matrix4();
                 voxelCoordinatesComplete[i].forEach((e, index) => {
@@ -446,6 +517,7 @@ const player = {
  */
 function loadFile (path, pos) {
     path = `./assets/${path}`;
+    let treeTextures = getTreeTextures(path.split('/')[2].split('.')[0]);
     //console.log(path);
     fetch(path)
     .then(response => {
@@ -459,7 +531,17 @@ function loadFile (path, pos) {
         let newObject = new THREE.Object3D();
         let listOfVoxels = []
         for (let item of dataJson) {
-            let newVoxel = new Voxel(item.pos, item.material, false, true);
+            let treeMaterial;
+            if (item.pos.x === 5 && item.pos.z === 5){ //é tronco
+                treeMaterial = treeTextures.log;
+            } else { //é folha
+                treeMaterial = treeTextures.leaves;
+                treeMaterial.transparent = true;
+            }
+
+            console.log(treeMaterial);
+
+            let newVoxel = new Voxel(item.pos, treeMaterial, false, true);
 
             listOfVoxels.push(newVoxel);
             newObject.add(newVoxel.getObject());
@@ -517,6 +599,87 @@ function buildInterface() {
     let fogFolder = gui.addFolder("Fog");
     //fogFolder.add(fogControls, "near", 0, 1000).name("Início").onChange(() => fogControls.changeFog());
     fogFolder.add(fogControls, "far", 0, 1000).name("Fim").onChange(() => fogControls.changeFog());
+}
+
+/*
+    1: água (gravel com cor)
+    2: areia
+    3,4,5: terra + grama
+    6,7: gravel (trocar posteriormente)
+    8: pedra
+    9: outra pedra
+    10: neve
+*/
+
+function setMaterial(index){
+    const dirtGrass = [2, 3, 4];
+    if (!dirtGrass.includes(index)){
+        let vxMat = new THREE.MeshLambertMaterial({ map: TEXTURES[index].texture, color: VOXEL_COLORS[index]});
+        return setTextureProperties(vxMat);
+    } else {
+        let dirtVxSide = setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[13].texture }));
+        let grassVxTop = setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[index].texture, color: VOXEL_COLORS[index] }));
+        return [
+            dirtVxSide,
+            dirtVxSide,
+            grassVxTop,
+            dirtVxSide,
+            dirtVxSide,
+            dirtVxSide,
+        ]
+    }
+}
+
+function setTextureProperties(texture){
+    texture.map.colorSpace = THREE.SRGBColorSpace;
+    texture.map.wrapS = texture.map.wrapT = THREE.RepeatWrapping;
+    texture.map.minFilter = texture.map.magFilter = THREE.LinearFilter;
+    texture.map.repeat = new THREE.Vector2(1, 1);
+    return texture;
+}
+
+async function loadTextures(){
+    return new Promise(async (resolve) => {
+        let textureLoader = new THREE.TextureLoader();
+        TEXTURES_NAMES.forEach(texName => {
+            let newTexture = textureLoader.load(`${TEXTURES_PATH}${texName}.png`);
+            TEXTURES.push({
+                name: texName,
+                texture: newTexture
+            })
+        })
+        console.log(TEXTURES);
+        resolve(true);
+    })
+}
+
+function getTreeTextures(treeName){
+    if (treeName === "arvoreAlga"){
+        return {
+            leaves: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[17].texture, color: 'green' })),
+            log: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[18].texture, color: 'khaki'  }))
+        }
+    } else if (treeName === "arvoreFloresta"){
+        return {
+            leaves: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[17].texture, color: 'green'  })),
+            log: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[18].texture, color: 'khaki'  }))
+        }
+    } else if (treeName === "arvoreMotanha"){
+        return {
+            leaves: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[17].texture, color: 'green'  })),
+            log: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[18].texture, color: 'khaki'  }))
+        }
+    } else if (treeName === "arvoreNeve"){
+        return {
+            leaves: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[17].texture, color: 'green'  })),
+            log: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[18].texture, color: 'khaki'  }))
+        }
+    } else if (treeName === "arvoreSavana"){
+        return {
+            leaves: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[17].texture, color: 'green'  })),
+            log: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[18].texture, color: 'khaki'}))
+        }
+    }
 }
 
 function updateFps(){
@@ -804,6 +967,8 @@ function initiateScene() {
 }
 
 async function init() {
+    await loadTextures();
+    console.log(TEXTURES);
     buildInterface();
     initControlInformation();
 
