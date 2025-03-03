@@ -318,13 +318,5 @@
             "z": 5
         },
         "material": "darkgreen"
-    },
-    {
-        "pos": {
-            "x": 5,
-            "y": 85,
-            "z": 5
-        },
-        "material": "darkgreen"
     }
 ]

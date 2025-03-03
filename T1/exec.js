@@ -27,32 +27,32 @@ const VOXEL_COLORS = [
     'snow'
 ];
 const TEXTURES_NAMES = [
-    "gravel",
-    "sand",
-    "grass_block_top",
-    "grass_block_top",
-    "grass_block_top",
-    "coarse_dirt",
-    "coarse_dirt",
-    "stone",
-    "cobblestone",
-    "snow",
-    "dirt",
-    "dirt_path_side",
-    "dirt_path_top",
-    "grass_block_side",
-    "smooth_stone_slab_side",
-    "ice",
-    "blue_ice",
-    "acacia_leaves",
-    "acacia_log",
-    "azalea_leaves",
-    "bamboo_large_leaves",
-    "birch_leaves",
-    "dark_oak_log",
-    "dark_oak_leaves",
-    "flowering_azalea_leaves",
-    "oak_log",
+    "gravel", //0
+    "sand", //1 
+    "grass_block_top", //2
+    "grass_block_top", //3
+    "grass_block_top", //4
+    "coarse_dirt", //5
+    "coarse_dirt", //6
+    "stone", //7
+    "cobblestone", //8
+    "snow", //9
+    "dirt", //10
+    "dirt_path_side", //11
+    "dirt_path_top", //12
+    "grass_block_side", //13
+    "smooth_stone_slab_side", //14
+    "ice", //15
+    "blue_ice", //16
+    "acacia_leaves", //17
+    "acacia_log", //18
+    "azalea_leaves", //20
+    "bamboo_large_leaves", //21
+    "birch_leaves", //22
+    "dark_oak_log", //23
+    "dark_oak_leaves", //24
+    "flowering_azalea_leaves", //24
+    "oak_log", //26
 ]
 const TEXTURES_PATH = "./assets/textures/";
 const TEXTURES = [];
@@ -176,6 +176,8 @@ const map = {
         'arvoreMontanha.json',
         'arvoreNeve.json'
     ],
+
+    //'arvoreMontanha.json'
     // Os campos factor, xoff, zoff, divisor1, divisor2 são campos usados na calibração do ruído Perlin.
     factor: 25, // Influência da sensibilidade de mudanças por coordenada (no nosso exemplo funciona como um zoom)
     //xoff: 45, // Offset do ponto de partida em X (no nosso exemplo funciona como uma movimentação no eixo X)
@@ -361,6 +363,7 @@ const map = {
             }
             threePos.forEach(pos => {
                 let r = chunksMaxY.findIndex(e => pos.y < e);
+                console.log(r);
                 let fileIndex;
 
                 if (r === 0) fileIndex = 0;
@@ -539,8 +542,6 @@ function loadFile (path, pos) {
                 treeMaterial.transparent = true;
             }
 
-            console.log(treeMaterial);
-
             let newVoxel = new Voxel(item.pos, treeMaterial, false, true);
 
             listOfVoxels.push(newVoxel);
@@ -648,7 +649,6 @@ async function loadTextures(){
                 texture: newTexture
             })
         })
-        console.log(TEXTURES);
         resolve(true);
     })
 }
@@ -656,28 +656,28 @@ async function loadTextures(){
 function getTreeTextures(treeName){
     if (treeName === "arvoreAlga"){
         return {
-            leaves: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[17].texture, color: 'green' })),
-            log: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[18].texture, color: 'khaki'  }))
+            leaves: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[21].texture, color: 'lawngreen' })),
+            log: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[21].texture, color: 'lawngreen'  }))
         }
     } else if (treeName === "arvoreFloresta"){
         return {
-            leaves: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[17].texture, color: 'green'  })),
-            log: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[18].texture, color: 'khaki'  }))
+            leaves: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[24].texture, /*color: 'green'*/ color: 'white' })),
+            log: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[18].texture, /*color: 'khaki'*/ color: 'white' }))
         }
-    } else if (treeName === "arvoreMotanha"){
+    } else if (treeName === "arvoreMontanha"){
         return {
-            leaves: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[17].texture, color: 'green'  })),
-            log: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[18].texture, color: 'khaki'  }))
+            leaves: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[20].texture, color: 'white'  })),
+            log: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[18].texture, color: '#473211'  }))
         }
     } else if (treeName === "arvoreNeve"){
         return {
-            leaves: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[17].texture, color: 'green'  })),
-            log: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[18].texture, color: 'khaki'  }))
+            leaves: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[24].texture, color: 'forestgreen'  })),
+            log: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[18].texture, /*color: 'khaki'*/ color: '#964B00' }))
         }
     } else if (treeName === "arvoreSavana"){
         return {
-            leaves: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[17].texture, color: 'green'  })),
-            log: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[18].texture, color: 'khaki'}))
+            leaves: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[21].texture, /*color: 'green'*/ color: 'lawngreen' })),
+            log: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[18].texture, color: '#f2c785'}))
         }
     }
 }
@@ -968,7 +968,6 @@ function initiateScene() {
 
 async function init() {
     await loadTextures();
-    console.log(TEXTURES);
     buildInterface();
     initControlInformation();
 
