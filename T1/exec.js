@@ -46,13 +46,24 @@ const TEXTURES_NAMES = [
     "blue_ice", //16
     "acacia_leaves", //17
     "acacia_log", //18
-    "azalea_leaves", //20
-    "bamboo_large_leaves", //21
-    "birch_leaves", //22
-    "dark_oak_log", //23
-    "dark_oak_leaves", //24
+    "azalea_leaves", //19
+    "bamboo_large_leaves", //20
+    "birch_leaves", //21
+    "dark_oak_log", //22
+    "dark_oak_leaves", //23
     "flowering_azalea_leaves", //24
-    "oak_log", //26
+    "oak_log", //25
+    "bricks", //26
+    "deepslate_bricks", //27
+    "stone_bricks", //28
+    "smooth_stone", //29
+    "polished_andesite", //30
+    "oak_planks", //31
+    "jungle_planks", //32
+    "acacia_planks", //33
+    "birch_planks", //34
+    "bamboo_block", //35
+    "bamboo_planks" //36
 ]
 const TEXTURES_PATH = "./assets/textures/";
 const TEXTURES = [];
@@ -70,6 +81,7 @@ renderer = initRendererWithAntialias();
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.VSMShadowMap;
 let shadowHelper;
+let templePosition;
 
 //camera e controles
 const orbitCamera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -174,7 +186,8 @@ const map = {
         'arvoreSavana.json',
         'arvoreFloresta.json',
         'arvoreMontanha.json',
-        'arvoreNeve.json'
+        'arvoreNeve.json',
+        'temple.json'
     ],
 
     //'arvoreMontanha.json'
@@ -219,19 +232,99 @@ const map = {
                         z: (z - this.zoff - MAP_SIZE/2) * VX - 5
                     });
 
-                    let vox = new THREE.Mesh(boxGeometry);
-                    vox.position.copy(new Vector3(
-                        (x - this.xoff - MAP_SIZE/2) * VX - 5,
-                        y * VX - 5,
-                        (z - this.zoff - MAP_SIZE/2) * VX - 5));
-                    let voxBb = new THREE.Box3().setFromObject(vox);
-                    voxelsBBs.push(voxBb);
-                    let helper = new THREE.Box3Helper( voxBb, 'red' );
-                    collisionHelpers.push(helper);
-                    scene.add( helper );
-                    helper.visible = false;
+                    // let vox = new THREE.Mesh(boxGeometry);
+                    // vox.position.copy(new Vector3(
+                    //     (x - this.xoff - MAP_SIZE/2) * VX - 5,
+                    //     y * VX - 5,
+                    //     (z - this.zoff - MAP_SIZE/2) * VX - 5));
+                    // let voxBb = new THREE.Box3().setFromObject(vox);
+                    // voxelsBBs.push(voxBb);
+                    // let helper = new THREE.Box3Helper( voxBb, 'red' );
+                    // collisionHelpers.push(helper);
+                    // scene.add( helper );
+                    // helper.visible = false;
                 }
             }
+
+            //reduzir o respawn para proximo do centro (entre 25% e 75% das bordas)
+            let borderMax = Math.max(...coordinates.map(e=>e=e.x))
+            let borderMin = Math.min(...coordinates.map(e=>e=e.x))
+
+            let mapLength = borderMax - borderMin;
+            let structureBorder = Math.floor(mapLength*0.25)
+            let structureBorderMax = borderMax - structureBorder;
+            let structureBorderMin = borderMin + structureBorder;
+
+            console.log(`Coord max ${structureBorderMax}, Coord min ${structureBorderMin}`);
+
+            //encontrar uma coordenada aleatória que esteja ai dentro
+
+            let randomIndex = -1;
+            while (randomIndex === -1){
+                let index = Math.floor(Math.random()*coordinates.length);
+                if (
+                    coordinates[index].x > structureBorderMin &&
+                    coordinates[index].x < structureBorderMax &&
+                    coordinates[index].z > structureBorderMin &&
+                    coordinates[index].z < structureBorderMax
+                ){
+                    randomIndex = index;
+                }
+            }
+
+            console.log(`Coordenada encontrada: x: ${coordinates[randomIndex].x},y: ${coordinates[randomIndex].y},z: ${coordinates[randomIndex].z}`);
+
+            //encontrar o menor y em um "raio" de 5 VX
+
+            let newCoords = [];
+            coordinates.forEach(el => {
+                if (
+                    el.x >= Math.round(coordinates[randomIndex].x - 5*VX) &&
+                    el.x <= Math.round(coordinates[randomIndex].x + 5*VX) &&
+                    el.z >= Math.round(coordinates[randomIndex].z - 5*VX) &&
+                    el.z <= Math.round(coordinates[randomIndex].z + 5*VX)
+                ){
+                    newCoords.push(el);
+                }
+            })
+
+            let coordMiny = Math.min(...newCoords.map(e=>e=e.y));
+
+            console.log(`Encontrado menor y: ${coordMiny} dentre ${newCoords.length} coordenadas`);
+
+            //setar todas as coordenadas desse raio para esse menor y
+
+            newCoords.forEach(e => {
+                let i = coordinates.findIndex(el => el.x === e.x && el.z === e.z);
+                if (i !== -1){
+                    coordinates[i].y = coordMiny;
+                    this.collisionCoordinates[i].y = Math.round((coordMiny + 5)/VX)
+                }
+            })
+
+            this.collisionCoordinates.forEach(e => {
+                let vox = new THREE.Mesh(boxGeometry);
+                vox.position.copy(new THREE.Vector3(
+                    e.x * VX - 5,
+                    e.y * VX - 5,
+                    e.z * VX - 5
+                ));
+                let voxBb = new THREE.Box3().setFromObject(vox);
+                voxelsBBs.push(voxBb);
+                let helper = new THREE.Box3Helper( voxBb, 'red' );
+                collisionHelpers.push(helper);
+                scene.add( helper );
+                helper.visible = false;
+            })
+
+
+
+            templePosition = {
+                x: coordinates[randomIndex].x,
+                y: coordMiny,
+                z: coordinates[randomIndex].z,
+            }
+
             resolve(coordinates);
         });
     },
@@ -261,7 +354,7 @@ const map = {
             //completa os voxels internos
             voxelChunks.forEach((chunk, index) => {
                 chunk.forEach(e => {
-                    for (let i = 0; i < 3; i++){
+                    for (let i = 0; i < 20; i++){
                         voxelCoordinatesComplete[index].push({
                             x: e.x,
                             y: e.y - i*VX,
@@ -363,7 +456,6 @@ const map = {
             }
             threePos.forEach(pos => {
                 let r = chunksMaxY.findIndex(e => pos.y < e);
-                console.log(r);
                 let fileIndex;
 
                 if (r === 0) fileIndex = 0;
@@ -374,6 +466,7 @@ const map = {
 
                 loadFile(this.files[fileIndex], new THREE.Vector3(pos.x - 5, pos.y + 5, pos.z - 5))
             });
+            loadFile(this.files[this.files.length - 1], new THREE.Vector3(templePosition.x - 5, templePosition.y + 5, templePosition.z - 5));
             resolve(true);
         });
     },
@@ -520,7 +613,8 @@ const player = {
  */
 function loadFile (path, pos) {
     path = `./assets/${path}`;
-    let treeTextures = getTreeTextures(path.split('/')[2].split('.')[0]);
+    let treeTextures;
+    if (path !== "./assets/temple.json") treeTextures = getTreeTextures(path.split('/')[2].split('.')[0]);
     //console.log(path);
     fetch(path)
     .then(response => {
@@ -534,20 +628,34 @@ function loadFile (path, pos) {
         let newObject = new THREE.Object3D();
         let listOfVoxels = []
         for (let item of dataJson) {
-            let treeMaterial;
-            if (item.pos.x === 5 && item.pos.z === 5){ //é tronco
-                treeMaterial = treeTextures.log;
-            } else { //é folha
-                treeMaterial = treeTextures.leaves;
-                treeMaterial.transparent = true;
+            let itemMaterial = null;
+
+            if (path !== "./assets/temple.json") {
+                if (item.pos.x === 5 && item.pos.z === 5){ //é tronco
+                    itemMaterial = treeTextures.log;
+                } else { //é folha
+                    console.log(path);
+                    itemMaterial = treeTextures.leaves;
+                    itemMaterial.transparent = true;
+                }
+            } else {
+                const {y} = item.pos;
+                if (y === 5){
+                    itemMaterial = new THREE.MeshLambertMaterial({ map: TEXTURES[30].texture, color: 'white' })
+                } else if (y > 5 && y < 65){
+                    itemMaterial = new THREE.MeshLambertMaterial({ map: TEXTURES[27].texture, color: 'white' })
+                } else {
+                    itemMaterial = new THREE.MeshLambertMaterial({ map: TEXTURES[32].texture, color: 'white' })
+                }
             }
 
-            let newVoxel = new Voxel(item.pos, treeMaterial, false, true);
+            let newVoxel = new Voxel(item.pos, itemMaterial, false, true);
 
             listOfVoxels.push(newVoxel);
             newObject.add(newVoxel.getObject());
         }
         map.addAndPlaceObject(
+            
             {
                 main: newObject,
                 voxels: listOfVoxels
@@ -837,7 +945,6 @@ function updatePlayer(delta){
     auxVector.y = 0; // Ignore vertical component
     auxVector.normalize(); // Ensure it's a unit vector
     
-    let rightVector = new THREE.Vector3();
     rightVector.crossVectors(auxVector, new THREE.Vector3(0, 1, 0)).normalize(); // Right direction
     
     if (forwardPressed) {

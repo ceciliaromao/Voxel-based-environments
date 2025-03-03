@@ -22,11 +22,16 @@ export default class Voxel {
         this.geometry = new THREE.BoxGeometry(1*VX, 1*VX, 1*VX);
         if (wireframe){ 
             this.geometry = new THREE.WireframeGeometry(this.geometry);
-            const lineMaterial = new THREE.LineBasicMaterial({ color: color });
+            const lineMaterial = new THREE.LineBasicMaterial({ color: 'white' });
             this.cube = new THREE.LineSegments(this.geometry, lineMaterial);
         } else {
-            //this.cube = new THREE.Mesh(this.geometry, new THREE.MeshLambertMaterial({color: color}));
-            this.cube = new THREE.Mesh(this.geometry, texture);
+            if (texture){
+                this.cube = new THREE.Mesh(this.geometry, texture);
+                //console.log("opa2")
+            } else {
+                this.cube = new THREE.Mesh(this.geometry, new THREE.MeshLambertMaterial({color: 'white'}));
+                //console.log("opa")
+            }
             this.cube.castShadow = true;
         }
         if (worldCoordinates) {

@@ -54,7 +54,7 @@ let axesHelper = new THREE.AxesHelper(12);
 scene.add(axesHelper);
 
 // Criando voxel de highlight (cursor)
-let highlightVoxel = new Voxel({ x: 0, y: 0, z: 0 }, voxelColors[materialsIndex], true);
+let highlightVoxel = new Voxel({ x: 0, y: 0, z: 0 }, /*voxelColors[materialsIndex]*/null, true);
 highlightVoxel.changeSize(1.05);
 highlightVoxel.place(scene);
 highlightVoxel.getObject().add(camera);
@@ -171,7 +171,7 @@ const currentBuild = {
             // TODO Criar aviso de erro
             console.log("Espaço ocupado!")
         } else {
-            let newVoxel = new Voxel(pos, voxelColors[materialsIndex], false, true);
+            let newVoxel = new Voxel(pos, /*voxelColors[materialsIndex]*/null, false, true);
             this.setValueToMatrixCell(pos, newVoxel);
             newVoxel.place(scene);
         }
