@@ -151,13 +151,13 @@ document.body.appendChild(fpsDisplay);
 
 
 //Corrige distorção na proporção dos objetos
-window.addEventListener('resize', function () {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
+// window.addEventListener('resize', function () {
+//     camera.aspect = window.innerWidth / window.innerHeight;
+//     camera.updateProjectionMatrix();
 
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
-});
+//     renderer.setSize(window.innerWidth, window.innerHeight);
+//     renderer.setPixelRatio(window.devicePixelRatio);
+// });
 
 
 let boxGeometry = new THREE.BoxGeometry(VX, VX, VX);
@@ -192,7 +192,7 @@ const map = {
 
     //'arvoreMontanha.json'
     // Os campos factor, xoff, zoff, divisor1, divisor2 são campos usados na calibração do ruído Perlin.
-    factor: 25, // Influência da sensibilidade de mudanças por coordenada (no nosso exemplo funciona como um zoom)
+    factor: 30, // Influência da sensibilidade de mudanças por coordenada (no nosso exemplo funciona como um zoom)
     //xoff: 45, // Offset do ponto de partida em X (no nosso exemplo funciona como uma movimentação no eixo X)
     xoff: Math.floor(Math.random()*50), //Math.random()*50,
     zoff: Math.floor(Math.random()*50), //Math.random()*50,
@@ -200,7 +200,7 @@ const map = {
     // Como a função retorna valores de -1 a 1, os campos abaixo indicam as divisões dos alcances que iram aparecer cada tipo de bloco (N0, N1 e N2)
     divisor1: -.06,
     divisor2: .23,
-    ymultiplier: 25,
+    ymultiplier: 15,
     absolute: false,
     sunxmultiplier: .2,
     sunzmultiplier: .07,
@@ -279,10 +279,10 @@ const map = {
             let newCoords = [];
             coordinates.forEach(el => {
                 if (
-                    el.x >= Math.round(coordinates[randomIndex].x - 5*VX) &&
-                    el.x <= Math.round(coordinates[randomIndex].x + 5*VX) &&
-                    el.z >= Math.round(coordinates[randomIndex].z - 5*VX) &&
-                    el.z <= Math.round(coordinates[randomIndex].z + 5*VX)
+                    el.x >= Math.round(coordinates[randomIndex].x - 4*VX) &&
+                    el.x <= Math.round(coordinates[randomIndex].x + 4*VX) &&
+                    el.z >= Math.round(coordinates[randomIndex].z - 4*VX) &&
+                    el.z <= Math.round(coordinates[randomIndex].z + 4*VX)
                 ){
                     newCoords.push(el);
                 }
@@ -302,20 +302,20 @@ const map = {
                 }
             })
 
-            this.collisionCoordinates.forEach(e => {
-                let vox = new THREE.Mesh(boxGeometry);
-                vox.position.copy(new THREE.Vector3(
-                    e.x * VX - 5,
-                    e.y * VX - 5,
-                    e.z * VX - 5
-                ));
-                let voxBb = new THREE.Box3().setFromObject(vox);
-                voxelsBBs.push(voxBb);
-                let helper = new THREE.Box3Helper( voxBb, 'red' );
-                collisionHelpers.push(helper);
-                scene.add( helper );
-                helper.visible = false;
-            })
+            // this.collisionCoordinates.forEach(e => {
+            //     let vox = new THREE.Mesh(boxGeometry);
+            //     vox.position.copy(new THREE.Vector3(
+            //         e.x * VX - 5,
+            //         e.y * VX - 5,
+            //         e.z * VX - 5
+            //     ));
+            //     let voxBb = new THREE.Box3().setFromObject(vox);
+            //     voxelsBBs.push(voxBb);
+            //     let helper = new THREE.Box3Helper( voxBb, 'red' );
+            //     collisionHelpers.push(helper);
+            //     scene.add( helper );
+            //     helper.visible = false;
+            // })
 
 
 
@@ -343,24 +343,53 @@ const map = {
             }
 
             let minySand = Math.min(...voxelChunks[1].map(e=>e=e.y));
-            //let miny = Math.min(...this.voxelsCoordinates.map(e=>e=e.y));
+            let miny = Math.min(...this.voxelsCoordinates.map(e=>e=e.y));
 
             let voxelCoordinatesComplete = [];
             for (let i = 0; i < VOXEL_COLORS.length; i++){
                 voxelCoordinatesComplete.push([]);
             }
 
+            //bloco de terra embaixo da grama
+            voxelCoordinatesComplete.push([]);
 
             //completa os voxels internos
             voxelChunks.forEach((chunk, index) => {
                 chunk.forEach(e => {
-                    for (let i = 0; i < 20; i++){
-                        voxelCoordinatesComplete[index].push({
+                    let y = e.y;
+                    while (y >= miny){
+                        let coord = {
                             x: e.x,
-                            y: e.y - i*VX,
+                            y: y,
                             z: e.z
-                        })
+                        }
+                        
+                        // COLISAO TESTE
+                            // let vox = new THREE.Mesh(boxGeometry);
+                            // vox.position.copy(coord);
+                            // let voxBb = new THREE.Box3().setFromObject(vox);
+                            // voxelsBBs.push(voxBb);
+                            // let helper = new THREE.Box3Helper( voxBb, 'red' );
+                            // collisionHelpers.push(helper);
+                            // scene.add( helper );
+                            // helper.visible = false;
+
+                        //COLISAO TESTE FIM
+                        voxelCoordinatesComplete[index].push(coord)
+                        y -= VX;
                     }
+                    // voxelCoordinatesComplete[index].push({
+                    //     x: e.x,
+                    //     y: e.y,
+                    //     z: e.z
+                    // })
+                    // for (let i = 0; i < 20; i++){
+                    //     voxelCoordinatesComplete[index].push({
+                    //         x: e.x,
+                    //         y: e.y - i*VX,
+                    //         z: e.z
+                    //     })
+                    // }
                 });
             })
 
@@ -454,7 +483,7 @@ const map = {
                 while (!!threePos.find(e=>Math.abs(e.x-coordinate.x) < VX || Math.abs(e.z-coordinate.z) < VX));
                 threePos.push(coordinate);
             }
-            threePos.forEach(pos => {
+            for (const pos of threePos) {
                 let r = chunksMaxY.findIndex(e => pos.y < e);
                 let fileIndex;
 
@@ -464,9 +493,11 @@ const map = {
                 if (r === 5 || r === 6 || r === 7) fileIndex = 3;
                 if (r === 8 || r === 9 || r === -1) fileIndex = 4;
 
-                loadFile(this.files[fileIndex], new THREE.Vector3(pos.x - 5, pos.y + 5, pos.z - 5))
-            });
-            loadFile(this.files[this.files.length - 1], new THREE.Vector3(templePosition.x - 5, templePosition.y + 5, templePosition.z - 5));
+                await loadFile(this.files[fileIndex], new THREE.Vector3(pos.x - 5, pos.y + 5, pos.z - 5))
+            };
+
+            await loadFile(this.files[this.files.length - 1], new THREE.Vector3(templePosition.x - 5, templePosition.y + 5, templePosition.z - 5));
+
             resolve(true);
         });
     },
@@ -498,25 +529,35 @@ const map = {
      * @param {*} object 
      * @param {*} pos 
      */
-    addAndPlaceObject: function (object, pos) {
+    addAndPlaceObject: async function (object, pos) {
+        return new Promise(async (resolve) => {
+            // for (let vox of object.voxels){
+            //     let voxPos = new THREE.Vector3().copy(pos);
+            //     voxPos.add(vox.cube.position);
+            //     let obj = new THREE.Mesh(boxGeometry);
+            //     obj.position.copy(voxPos);
+            //     let objBB = new THREE.Box3().setFromObject(obj);
+            //     voxelsBBs.push(objBB);
+            //     let helper = new THREE.Box3Helper( objBB, 'red' );
+            //     collisionHelpers.push(helper);
+            //     scene.add(helper)
+            //     helper.visible = false;
+            // }
 
-        for (let vox of object.voxels){
-            let voxPos = new THREE.Vector3().copy(pos);
-            voxPos.add(vox.cube.position);
-            let obj = new THREE.Mesh(boxGeometry);
-            obj.position.copy(voxPos);
-            let objBB = new THREE.Box3().setFromObject(obj);
-            voxelsBBs.push(objBB);
-            let helper = new THREE.Box3Helper( objBB, 'red' );
-            collisionHelpers.push(helper);
-            scene.add(helper)
-            helper.visible = false;
-        }
+            await createCollisionMap(object.voxels.map(e=>{
+                let voxPos = new THREE.Vector3().copy(pos).add(e.cube.position);
+                return {
+                    x: (voxPos.x + 5)/VX,
+                    y: (voxPos.y + 5)/VX,
+                    z: (voxPos.z + 5)/VX
+                }
+            }))
 
-        this.objects.push(object);
-        object.main.position.set(pos.x, pos.y, pos.z);
-        scene.add(object.main);
-
+            this.objects.push(object);
+            object.main.position.set(pos.x, pos.y, pos.z);
+            scene.add(object.main);
+            resolve(true);
+        })
     },
     /**
      * Limpa a cena.
@@ -612,6 +653,7 @@ const player = {
  * @param {*} pos 
  */
 function loadFile (path, pos) {
+    return new Promise((resolve, reject) => {
     path = `./assets/${path}`;
     let treeTextures;
     if (path !== "./assets/temple.json") treeTextures = getTreeTextures(path.split('/')[2].split('.')[0]);
@@ -623,7 +665,7 @@ function loadFile (path, pos) {
         }
         return response.text();
     })
-    .then(data => {
+    .then(async data => {
         let dataJson = JSON.parse(data);
         let newObject = new THREE.Object3D();
         let listOfVoxels = []
@@ -634,7 +676,7 @@ function loadFile (path, pos) {
                 if (item.pos.x === 5 && item.pos.z === 5){ //é tronco
                     itemMaterial = treeTextures.log;
                 } else { //é folha
-                    console.log(path);
+                    //console.log(path);
                     itemMaterial = treeTextures.leaves;
                     itemMaterial.transparent = true;
                 }
@@ -654,18 +696,21 @@ function loadFile (path, pos) {
             listOfVoxels.push(newVoxel);
             newObject.add(newVoxel.getObject());
         }
-        map.addAndPlaceObject(
+        await map.addAndPlaceObject(
             
             {
                 main: newObject,
                 voxels: listOfVoxels
             },
             pos
-        )
+        );
+        resolve();
     })
     .catch(error => {
         console.error('Erro:', error);
+        reject(error);
     });
+})
 }
 
 const fogControls = {
@@ -807,6 +852,26 @@ function updateFpsDisplay(){
 }
 
 /* FUNÇÕES DE COLISÃO */
+
+async function createCollisionMap(coordinates){
+    return new Promise(async (resolve) => {
+    coordinates.forEach(e => {
+        let vox = new THREE.Mesh(boxGeometry);
+        vox.position.copy(new THREE.Vector3(
+            e.x * VX - 5,
+            e.y * VX - 5,
+            e.z * VX - 5
+        ));
+        let voxBb = new THREE.Box3().setFromObject(vox);
+        voxelsBBs.push(voxBb);
+        let helper = new THREE.Box3Helper( voxBb, 'red' );
+        collisionHelpers.push(helper);
+        scene.add( helper );
+        helper.visible = false;
+    })
+    resolve(true);
+})
+}
 
 function setCollisionHelpersVisible(){
     collisionHelpers.forEach( e => e.visible = !e.visible);
@@ -1078,35 +1143,37 @@ async function init() {
     buildInterface();
     initControlInformation();
 
-    await map.create();
+    map.create().then(() => {
+        let y = map.collisionCoordinates.find(e => e.x === 0 && e.z === 0).y;
+        player.initPlayer().then(() => {
+            playerIntialPos = new THREE.Vector3(
+                0,
+                y*VX + 2*VX,
+                0
+            );
 
-    let y = map.collisionCoordinates.find(e => e.x === 0 && e.z === 0).y;
-    player.initPlayer().then(() => {
-        playerIntialPos = new THREE.Vector3(
-            0,
-            y*VX + 2*VX,
-            0
-        );
+            player.setPlayerPosition(playerIntialPos);
 
-        player.setPlayerPosition(playerIntialPos);
+            initiateScene();
 
-        initiateScene();
+            createCollisionMap(map.collisionCoordinates);
+            voxelsBBs.forEach(bb => addVoxelToMap(bb));
+            console.log(voxelsBBs);
 
-        voxelsBBs.forEach(bb => addVoxelToMap(bb));
+            scene.fog = new THREE.Fog(FOG_COLOR, MIN_FOG, MAX_FOG);
+            scene.fog.inten
 
-        scene.fog = new THREE.Fog(FOG_COLOR, MIN_FOG, MAX_FOG);
-        scene.fog.inten
+            map.dirLight.target = player.object;
 
-        map.dirLight.target = player.object;
+            camera = FPCamera;
 
-        camera = FPCamera;
+            shadowHelper = new THREE.CameraHelper(map.dirLight.shadow.camera);
+            shadowHelper.visible = false;
+            scene.add(shadowHelper);
+            changePerspective();
 
-        shadowHelper = new THREE.CameraHelper(map.dirLight.shadow.camera);
-        shadowHelper.visible = false;
-        scene.add(shadowHelper);
-        changePerspective();
-
-        animate();
+            animate();
+        });
     });
 }
 
