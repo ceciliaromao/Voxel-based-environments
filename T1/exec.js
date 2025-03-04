@@ -65,8 +65,15 @@ const TEXTURES_NAMES = [
     "bamboo_block", //35
     "bamboo_planks" //36
 ]
+
+const SKYBOX_TEXTURES = [
+    "panoramic-sea",
+    "sky-box-city",
+    "field-with-clouds"
+]
 const TEXTURES_PATH = "./assets/textures/";
 const TEXTURES = [];
+let skyboxTexture;
 
 //cena
 let scene;
@@ -187,7 +194,7 @@ const map = {
         'arvoreFloresta.json',
         'arvoreMontanha.json',
         'arvoreNeve.json',
-        'temple.json'
+        'templo_divino.json'
     ],
 
     //'arvoreMontanha.json'
@@ -206,6 +213,7 @@ const map = {
     sunzmultiplier: .07,
     voxelsCoordinates: [],
     collisionCoordinates: [],
+    templeCoords: [],
     instancedMeshes: [],
     dirLight: null,
     dirLightOffset: new THREE.Vector3(10, 60, -20),
@@ -255,7 +263,7 @@ const map = {
             let structureBorderMax = borderMax - structureBorder;
             let structureBorderMin = borderMin + structureBorder;
 
-            console.log(`Coord max ${structureBorderMax}, Coord min ${structureBorderMin}`);
+            //console.log(`Coord max ${structureBorderMax}, Coord min ${structureBorderMin}`);
 
             //encontrar uma coordenada aleatória que esteja ai dentro
 
@@ -272,29 +280,29 @@ const map = {
                 }
             }
 
-            console.log(`Coordenada encontrada: x: ${coordinates[randomIndex].x},y: ${coordinates[randomIndex].y},z: ${coordinates[randomIndex].z}`);
+           // console.log(`Coordenada encontrada: x: ${coordinates[randomIndex].x},y: ${coordinates[randomIndex].y},z: ${coordinates[randomIndex].z}`);
 
             //encontrar o menor y em um "raio" de 5 VX
 
-            let newCoords = [];
+            let templeCoords = [];
             coordinates.forEach(el => {
                 if (
-                    el.x >= Math.round(coordinates[randomIndex].x - 4*VX) &&
-                    el.x <= Math.round(coordinates[randomIndex].x + 4*VX) &&
-                    el.z >= Math.round(coordinates[randomIndex].z - 4*VX) &&
-                    el.z <= Math.round(coordinates[randomIndex].z + 4*VX)
+                    el.x >= Math.round(coordinates[randomIndex].x - 5*VX) &&
+                    el.x < Math.round(coordinates[randomIndex].x + 5*VX) &&
+                    el.z >= Math.round(coordinates[randomIndex].z - 5*VX) &&
+                    el.z < Math.round(coordinates[randomIndex].z + 5*VX)
                 ){
-                    newCoords.push(el);
+                    templeCoords.push(el);
                 }
             })
 
-            let coordMiny = Math.min(...newCoords.map(e=>e=e.y));
+            let coordMiny = Math.min(...templeCoords.map(e=>e=e.y));
 
-            console.log(`Encontrado menor y: ${coordMiny} dentre ${newCoords.length} coordenadas`);
+            //console.log(`Encontrado menor y: ${coordMiny} dentre ${templeCoords.length} coordenadas`);
 
             //setar todas as coordenadas desse raio para esse menor y
 
-            newCoords.forEach(e => {
+            templeCoords.forEach(e => {
                 let i = coordinates.findIndex(el => el.x === e.x && el.z === e.z);
                 if (i !== -1){
                     coordinates[i].y = coordMiny;
@@ -324,6 +332,8 @@ const map = {
                 y: coordMiny,
                 z: coordinates[randomIndex].z,
             }
+
+            this.templeCoords = templeCoords;
 
             resolve(coordinates);
         });
@@ -480,7 +490,7 @@ const map = {
             for (let i = 0; i < threeQuantity; i++){ 
                 let coordinate;
                 do { coordinate = this.voxelsCoordinates[Math.floor(Math.random()*this.voxelsCoordinates.length)]; }
-                while (!!threePos.find(e=>Math.abs(e.x-coordinate.x) < VX || Math.abs(e.z-coordinate.z) < VX));
+                while (!!threePos.find(e=>Math.abs(e.x-coordinate.x) < VX || Math.abs(e.z-coordinate.z) < VX || this.templeCoords.includes(coordinate)));
                 threePos.push(coordinate);
             }
             for (const pos of threePos) {
@@ -656,7 +666,7 @@ function loadFile (path, pos) {
     return new Promise((resolve, reject) => {
     path = `./assets/${path}`;
     let treeTextures;
-    if (path !== "./assets/temple.json") treeTextures = getTreeTextures(path.split('/')[2].split('.')[0]);
+    if (path !== "./assets/templo_divino.json") treeTextures = getTreeTextures(path.split('/')[2].split('.')[0]);
     //console.log(path);
     fetch(path)
     .then(response => {
@@ -672,7 +682,7 @@ function loadFile (path, pos) {
         for (let item of dataJson) {
             let itemMaterial = null;
 
-            if (path !== "./assets/temple.json") {
+            if (path !== "./assets/templo_divino.json") {
                 if (item.pos.x === 5 && item.pos.z === 5){ //é tronco
                     itemMaterial = treeTextures.log;
                 } else { //é folha
@@ -681,13 +691,17 @@ function loadFile (path, pos) {
                     itemMaterial.transparent = true;
                 }
             } else {
-                const {y} = item.pos;
+                const {y, x, z} = item.pos;
                 if (y === 5){
-                    itemMaterial = new THREE.MeshLambertMaterial({ map: TEXTURES[30].texture, color: 'white' })
-                } else if (y > 5 && y < 65){
-                    itemMaterial = new THREE.MeshLambertMaterial({ map: TEXTURES[27].texture, color: 'white' })
+                    itemMaterial = new THREE.MeshLambertMaterial({ map: TEXTURES[28].texture, color: 'white' })
+                } else if (y > 5 && y < 55){
+                    if (x >= -5 && x <= 5 && z >= -5 && z <= 5){
+                        itemMaterial = new THREE.MeshLambertMaterial({ map: TEXTURES[16].texture, color: 'white' })
+                    } else {
+                        itemMaterial = new THREE.MeshLambertMaterial({ map: TEXTURES[27].texture, color: 'white' })
+                    }
                 } else {
-                    itemMaterial = new THREE.MeshLambertMaterial({ map: TEXTURES[32].texture, color: 'white' })
+                    itemMaterial = new THREE.MeshLambertMaterial({ map: TEXTURES[31].texture, color: 'white' })
                 }
             }
 
@@ -716,17 +730,29 @@ function loadFile (path, pos) {
 const fogControls = {
     near: 0,
     far: 350,
+    fog: true,
     changeFog: function(){
         scene.fog = new THREE.Fog(FOG_COLOR, this.near, this.far)
         map.setLightTam(this.far*(2/3));
     },
     disableFog: function(){
+        console.log(`FOG: ${this.fog}`);
         scene.fog = new THREE.Fog(FOG_COLOR, .1, 10000);
     },
     enableFog: function(){
+        console.log(`FOG: ${this.fog}`);
         scene.fog = new THREE.Fog(FOG_COLOR, .1, 350)
         map.setLightTam(this.far*(2/3));
     },
+    setFog: function(input){
+        this.fog = input || !this.fog;
+
+        if (this.fog){
+            this.enableFog();
+        } else {
+            this.disableFog();
+        }
+    }
 }
 
 // Contrói a GUI
@@ -742,6 +768,7 @@ function initControlInformation() {
     controlsInfo.add("Coll. Help:     R");
     controlsInfo.add("Shadow Help:    H");
     controlsInfo.add("Câmera:         C");
+    controlsInfo.add("DisableFog:     F");
     controlsInfo.show();
     let infobox = document.getElementById('controlsInfoBox')
     infobox.style.fontFamily = 'Courier New, monospace';
@@ -802,6 +829,10 @@ async function loadTextures(){
                 texture: newTexture
             })
         })
+
+        skyboxTexture = textureLoader.load(`${TEXTURES_PATH}${SKYBOX_TEXTURES[0]}.jpg`);
+        skyboxTexture = THREE.EquirectangularReflectionMapping;
+
         resolve(true);
     })
 }
@@ -1054,7 +1085,7 @@ function changePerspective(){
     if (camera === orbitCamera){
         // ORBIT => CONTROL
 
-        fogControls.enableFog();
+        //fogControls.setFog();
 
         //Altera info dos controles
         const el = document.getElementById("OrbitInfoBox");
@@ -1067,7 +1098,7 @@ function changePerspective(){
     } else {
         // CONTROL => ORBIT
 
-        fogControls.disableFog();
+        //fogControls.setFog();
 
         //Altera info dos controles
         const el = document.getElementById("ControlInfoBox");
@@ -1082,6 +1113,14 @@ function changePerspective(){
 }
 
 /* FIM FUNÇÕES DE MOVIMENTO e JOGADOR */
+
+function loadSkyTexture(){
+    const textureLoader = new THREE.TextureLoader();
+    let textureEquirec = textureLoader.load( `${TEXTURES_PATH}${SKYBOX_TEXTURES[0]}.jpg` );
+    textureEquirec.mapping = THREE.EquirectangularReflectionMapping;
+    textureEquirec.colorSpace = THREE.SRGBColorSpace;
+    scene.background = textureEquirec;
+}
 
 function updateDirLight(){
     map.dirLight.position.copy(player.object.position).add(map.dirLightOffset);
@@ -1114,6 +1153,7 @@ function initiateScene() {
             case 'KeyC': changePerspective(); break;
             case 'KeyH': shadowHelper.visible = !shadowHelper.visible; break;
             case 'KeyR': setCollisionHelpersVisible(); break;
+            case 'KeyF': fogControls.setFog(); break;
             case 'Space': jump(); break;
         }
     });
@@ -1140,6 +1180,7 @@ function initiateScene() {
 
 async function init() {
     await loadTextures();
+    await loadSkyTexture();
     buildInterface();
     initControlInformation();
 
@@ -1158,10 +1199,8 @@ async function init() {
 
             createCollisionMap(map.collisionCoordinates);
             voxelsBBs.forEach(bb => addVoxelToMap(bb));
-            console.log(voxelsBBs);
 
             scene.fog = new THREE.Fog(FOG_COLOR, MIN_FOG, MAX_FOG);
-            scene.fog.inten
 
             map.dirLight.target = player.object;
 
@@ -1171,6 +1210,7 @@ async function init() {
             shadowHelper.visible = false;
             scene.add(shadowHelper);
             changePerspective();
+            fogControls.setFog(false);
 
             animate();
         });
