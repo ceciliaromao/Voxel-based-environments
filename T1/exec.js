@@ -98,7 +98,6 @@ let perspective = "orbital";
 let camera;
 let orbControls;
 let TPCamera;
-
 const FPCamera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 1000 );
 FPCamera.position.set(-100, 25, 175);
 const FPControls = new PointerLockControls(FPCamera, renderer.domElement);
@@ -108,24 +107,6 @@ const blocker = document.getElementById('blocker');
 const instructions = document.getElementById('instructions');
 instructions.style.display = 'none';
 blocker.style.display = 'none';
-
-instructions.addEventListener('click', function () {
-
-    if (perspective === "firstperson") FPControls.lock();
-
-}, false);
-
-FPControls.addEventListener('lock', function () {
-    instructions.style.display = 'none';
-    blocker.style.display = 'none';
-});
-
-FPControls.addEventListener('unlock', function () {
-    if (perspective === "firstperson"){
-        blocker.style.display = 'block';
-        instructions.style.display = '';
-    }
-});
 
 //colisão
 let occupiedVoxels = new Map();
@@ -143,6 +124,27 @@ let playerMoveSpeed = 100;
 let isJumping = false;
 let playerIntialPos = new THREE.Vector3();
 const clock = new THREE.Clock();
+
+//interação
+// let intersectionSphere = new THREE.Mesh(
+//    new THREE.SphereGeometry(.2, 30, 30, 0, Math.PI * 2, 0, Math.PI),
+//    new THREE.MeshPhongMaterial({color:"orange", shininess:"200"}));
+// scene.add(intersectionSphere);
+let voxelPosMap = new Map();
+let raycaster = new THREE.Raycaster();
+let mouse = new THREE.Vector2(0, 0);
+const fadingDuration = 2000;
+const interactionRadius = 40;
+let selectedVoxel = { mesh: null, instanceId: null };
+const highlightMaterial = new THREE.MeshBasicMaterial({
+    color: 'white',
+    transparent: true,
+    opacity: 0.5,
+    depthTest: false,
+});
+const highlightBox = new THREE.Mesh(new THREE.BoxGeometry(VX*1.02, VX*1.02, VX*1.02), highlightMaterial);
+highlightBox.visible = false;
+scene.add(highlightBox);
 
 //fps
 let frameCount = 0;
@@ -453,9 +455,17 @@ const map = {
                     const {x, y, z} = e;
                     voxelMatrix.makeTranslation(x, y, z);
                     instaMesh.setMatrixAt(index, voxelMatrix);
+                    const voxelPosKey = `${Math.round(x)},${Math.round(y)},${Math.round(z)}`;
+                    voxelPosMap.set(voxelPosKey,
+                        {
+                            instanceId: index,
+                            meshId: this.instancedMeshes.length
+                        }
+                    );
                 })
                 instaMesh.castShadow = true;
                 instaMesh.receiveShadow = true;
+                instaMesh.name = VOXEL_COLORS[i];
                 this.instancedMeshes.push(instaMesh);
                 scene.add(instaMesh);
             }
@@ -992,6 +1002,95 @@ function isColliding(player, direction, delta) {
 
 /* FIM DAS FUNÇÕES DE COLISÃO */
 
+/* FUNÇÕES DE INTERAÇÃO COM O AMBIENTE */
+
+function highlightSelectedVoxel(voxel){
+    highlightBox.visible = false;
+
+    if (perspective !== "firstperson") return;
+
+    if (voxel){ 
+        highlightBox.position.copy(voxel.getCenter((new THREE.Vector3())));
+        highlightBox.visible = true;
+    }
+
+    return;
+}
+
+function getSelectedVoxel(){
+    if (perspective !== "firstperson") return;
+    raycaster.setFromCamera(mouse, camera);
+
+    const nearbyBoxes = getNearbyVoxels();
+
+    if (nearbyBoxes.length){
+        for (let box of nearbyBoxes){
+            if (raycaster.ray.intersectsBox(box)){
+                return box;
+            }
+        }   
+    }
+
+    return;
+}
+
+function removeSelectedVoxel(voxelBox){
+    if (perspective !== "firstperson" || !voxelBox) return;
+
+    const voxelCenter = voxelBox.getCenter(new THREE.Vector3());
+
+    const voxelPosKey = `${voxelCenter.x},${voxelCenter.y},${voxelCenter.z}`;
+
+    if (voxelPosMap.has(voxelPosKey)){
+        const { instanceId, meshId } = voxelPosMap.get(voxelPosKey);
+        const instancedMesh = map.instancedMeshes[meshId];
+
+        
+        const lastIndex = instancedMesh.count - 1;
+        const matrix = new THREE.Matrix4();
+        instancedMesh.getMatrixAt(lastIndex, matrix);
+        instancedMesh.setMatrixAt(instanceId, matrix);
+
+        instancedMesh.count--;
+        instancedMesh.instanceMatrix.needsUpdate = true;
+        removeFromCollisionMap(voxelBox);
+
+        console.log(`Voxel removed from mesh ${meshId} at position`, voxelPosKey);
+    }
+
+}
+
+function removeFromCollisionMap(voxelBox){
+    let center = new THREE.Vector3();
+    voxelBox.getCenter(center);
+
+    let gridX = Math.round(center.x / VX); if (gridX == 0) gridX = 0;
+    let gridY = Math.round(center.y / VX); if (gridY == 0) gridY = 0;
+    let gridZ = Math.round(center.z / VX); if (gridZ == 0) gridZ = 0;
+
+    let mapKey = `${gridX},${gridY},${gridZ}`;
+
+    if (occupiedVoxels.has(mapKey)) {
+        occupiedVoxels.delete(mapKey);
+        console.log(`Removed voxel at ${mapKey} from the map.`);
+    }
+
+}
+
+function toggleCrosshair() {
+    let crosshair = document.getElementById("crosshair");
+    if (crosshair.style.visibility === "hidden") {
+        crosshair.style.visibility = "visible";
+    } else {
+        crosshair.style.visibility = "hidden";
+    }
+    crosshair.offsetHeight;
+    
+}
+
+
+/* FIM DAS FUNÇÕES DE INTERAÇÃO COM O AMBIENTE */
+
 /* FUNÇÕES DE MOVIMENTO e JOGADOR */
 
 function isPlayerMoving(){
@@ -1090,6 +1189,7 @@ function changePerspective(){
         //Altera info dos controles
         const el = document.getElementById("OrbitInfoBox");
         if (el) el.remove();
+        toggleCrosshair();
 
         //Altera a câmera e prende o mouse
         camera = FPCamera;
@@ -1103,6 +1203,7 @@ function changePerspective(){
         //Altera info dos controles
         const el = document.getElementById("ControlInfoBox");
         if (el) el.remove();
+        toggleCrosshair();
 
         //Altera a câmera e libera o mouse
         perspective = "orbital";
@@ -1137,6 +1238,40 @@ function animate(){
 
 function initiateScene() {
 
+    instructions.addEventListener('click', function () {
+
+        if (perspective === "firstperson") FPControls.lock();
+
+    }, false);
+
+    FPControls.addEventListener('lock', function () {
+        instructions.style.display = 'none';
+        blocker.style.display = 'none';
+    });
+
+    FPControls.addEventListener('unlock', function () {
+        if (perspective === "firstperson"){
+            blocker.style.display = 'block';
+            instructions.style.display = '';
+        }
+    });
+
+    window.addEventListener('mousedown', (event) => {
+        if (event.button === 2) {
+            jump();
+        }
+    });
+
+    window.addEventListener('mousemove', () => {
+        const selectedVoxel = getSelectedVoxel();
+        highlightSelectedVoxel(selectedVoxel);
+    });
+
+    window.addEventListener('click', () => {
+        const selectedVoxel = getSelectedVoxel();
+        removeSelectedVoxel(selectedVoxel);
+    });
+
     //CONTROLES
     window.addEventListener( 'keydown', (event) => {
         switch(event.code){
@@ -1149,7 +1284,7 @@ function initiateScene() {
             case 'KeyD': rightPressed = true; break;
             case 'ArrowRight': rightPressed = true; break;
             case 'KeyQ': stopAnyMovement(); break;
-            case 'KeyY': /* invert Y */; break;
+            case 'KeyY': /* invert Y */toggleCrosshair(); break;
             case 'KeyC': changePerspective(); break;
             case 'KeyH': shadowHelper.visible = !shadowHelper.visible; break;
             case 'KeyR': setCollisionHelpersVisible(); break;
@@ -1168,12 +1303,6 @@ function initiateScene() {
             case 'ArrowDown': backwardPressed = false; break;
             case 'KeyD': rightPressed = false; break;
             case 'ArrowRight': rightPressed = false; break;
-        }
-    });
-
-    window.addEventListener('mousedown', (event) => {
-        if (event.button === 2) {
-            jump();
         }
     });
 }
@@ -1211,6 +1340,10 @@ async function init() {
             scene.add(shadowHelper);
             changePerspective();
             fogControls.setFog(false);
+
+            toggleCrosshair();
+
+            console.log(voxelPosMap);
 
             animate();
         });
