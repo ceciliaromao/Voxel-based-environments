@@ -447,27 +447,28 @@ const map = {
             */
 
             for (let i = 0; i < VOXEL_COLORS.length; i++){
-                voxelMat = setMaterial(i);
-                //voxelMat = new THREE.MeshLambertMaterial({ color: VOXEL_COLORS[i] })
-                instaMesh = new THREE.InstancedMesh(voxelGeo, voxelMat, voxelCoordinatesComplete[i].length);
-                voxelMatrix = new THREE.Matrix4();
-                voxelCoordinatesComplete[i].forEach((e, index) => {
-                    const {x, y, z} = e;
-                    voxelMatrix.makeTranslation(x, y, z);
-                    instaMesh.setMatrixAt(index, voxelMatrix);
-                    const voxelPosKey = `${Math.round(x)},${Math.round(y)},${Math.round(z)}`;
-                    voxelPosMap.set(voxelPosKey,
-                        {
-                            instanceId: index,
-                            meshId: this.instancedMeshes.length
-                        }
-                    );
-                })
-                instaMesh.castShadow = true;
-                instaMesh.receiveShadow = true;
-                instaMesh.name = VOXEL_COLORS[i];
-                this.instancedMeshes.push(instaMesh);
-                scene.add(instaMesh);
+                // voxelMat = setMaterial(i);
+                // //voxelMat = new THREE.MeshLambertMaterial({ color: VOXEL_COLORS[i] })
+                // instaMesh = new THREE.InstancedMesh(voxelGeo, voxelMat, voxelCoordinatesComplete[i].length);
+                // voxelMatrix = new THREE.Matrix4();
+                // voxelCoordinatesComplete[i].forEach((e, index) => {
+                //     const {x, y, z} = e;
+                //     voxelMatrix.makeTranslation(x, y, z);
+                //     instaMesh.setMatrixAt(index, voxelMatrix);
+                //     const voxelPosKey = `${Math.round(x)},${Math.round(y)},${Math.round(z)}`;
+                //     voxelPosMap.set(voxelPosKey,
+                //         {
+                //             instanceId: index,
+                //             meshId: this.instancedMeshes.length
+                //         }
+                //     );
+                // })
+                // instaMesh.castShadow = true;
+                // instaMesh.receiveShadow = true;
+                // instaMesh.name = VOXEL_COLORS[i];
+                // this.instancedMeshes.push(instaMesh);
+                // scene.add(instaMesh);
+                await this.createInstancedMesh(voxelCoordinatesComplete[i], setMaterial(i));
             }
 
             //criação da luz
@@ -544,12 +545,38 @@ const map = {
         this.land.push(box);
         scene.add(box);
     },
+
+    createInstancedMesh: async function (coordinates, material){
+        return new Promise(async (resolve) => {
+            let geometry = new THREE.BoxGeometry(VX, VX, VX);
+            let instancedMesh = new THREE.InstancedMesh(geometry, material, coordinates.length);
+        
+            let matrix = new THREE.Matrix4();
+            coordinates.forEach((e, index) => {
+                const {x, y, z} = e;
+                matrix.makeTranslation(x, y, z);
+                instancedMesh.setMatrixAt(index, matrix);
+                const voxelPosKey = `${Math.round(x)},${Math.round(y)},${Math.round(z)}`;
+                voxelPosMap.set(voxelPosKey,
+                    {
+                        instanceId: index,
+                        meshId: this.instancedMeshes.length
+                    }
+                );
+            })
+            instancedMesh.castShadow = true;
+            instancedMesh.receiveShadow = true;
+            this.instancedMeshes.push(instancedMesh);
+            scene.add(instancedMesh);
+            resolve(true)
+        })
+    },
     /**
      * Função auxiliar para adicionar um objeto na lista de objetos e posicionar na cena.
      * @param {*} object 
      * @param {*} pos 
      */
-    addAndPlaceObject: async function (object, pos) {
+    addAndPlaceObject: async function (input) {
         return new Promise(async (resolve) => {
             // for (let vox of object.voxels){
             //     let voxPos = new THREE.Vector3().copy(pos);
@@ -564,8 +591,23 @@ const map = {
             //     helper.visible = false;
             // }
 
-            await createCollisionMap(object.voxels.map(e=>{
-                let voxPos = new THREE.Vector3().copy(pos).add(e.cube.position);
+            // await createCollisionMap(object.voxels.map(e=>{
+            //     let voxPos = new THREE.Vector3().copy(pos).add(e.cube.position);
+            //     return {
+            //         x: (voxPos.x + 5)/VX,
+            //         y: (voxPos.y + 5)/VX,
+            //         z: (voxPos.z + 5)/VX
+            //     }
+            // }))
+
+            // this.objects.push(object);
+            // object.main.position.set(pos.x, pos.y, pos.z);
+            // scene.add(object.main);
+
+            const { positions, textures, mainPos, isTemple } = input;
+
+            await createCollisionMap(positions.map(e=>{
+                let voxPos = new THREE.Vector3().copy(mainPos).add(e);
                 return {
                     x: (voxPos.x + 5)/VX,
                     y: (voxPos.y + 5)/VX,
@@ -573,9 +615,38 @@ const map = {
                 }
             }))
 
-            this.objects.push(object);
-            object.main.position.set(pos.x, pos.y, pos.z);
-            scene.add(object.main);
+            console.log(input);
+
+            let meshPositions = [];
+
+            if (isTemple){
+                meshPositions = splitTemple(positions);
+            } else { //is tree
+                textures[0].transparent = true;
+                meshPositions.push(positions.filter(e => e.x !== 5 || e.z !== 5));
+                meshPositions.push(positions.filter(e => e.x === 5 && e.z === 5));
+            }
+            
+            console.log(meshPositions);
+
+            for (let i = 0; i < meshPositions.length; i++){
+                await this.createInstancedMesh(
+                    meshPositions[i].map(e => e = e.add(mainPos)),
+                    textures[i]
+                );
+            }
+
+
+
+            //if tree
+
+
+            // for (const texture of textures){
+            //     texture.transparent = true;
+            //     let meshPositions = positions.filter(objectCallback);
+
+            // }
+
             resolve(true);
         })
     },
@@ -675,8 +746,14 @@ const player = {
 function loadFile (path, pos) {
     return new Promise((resolve, reject) => {
     path = `./assets/${path}`;
-    let treeTextures;
-    if (path !== "./assets/templo_divino.json") treeTextures = getTreeTextures(path.split('/')[2].split('.')[0]);
+    let isTemple = false;
+    let itemTextures;
+    if (path !== "./assets/templo_divino.json") {
+        itemTextures = getTreeTextures(path.split('/')[2].split('.')[0]);
+    } else {
+        isTemple = true;
+        itemTextures = getTempleTextures();
+    }
     //console.log(path);
     fetch(path)
     .then(response => {
@@ -689,42 +766,53 @@ function loadFile (path, pos) {
         let dataJson = JSON.parse(data);
         let newObject = new THREE.Object3D();
         let listOfVoxels = []
+        let itensPositions = [];
         for (let item of dataJson) {
             let itemMaterial = null;
 
-            if (path !== "./assets/templo_divino.json") {
-                if (item.pos.x === 5 && item.pos.z === 5){ //é tronco
-                    itemMaterial = treeTextures.log;
-                } else { //é folha
-                    //console.log(path);
-                    itemMaterial = treeTextures.leaves;
-                    itemMaterial.transparent = true;
-                }
-            } else {
-                const {y, x, z} = item.pos;
-                if (y === 5){
-                    itemMaterial = new THREE.MeshLambertMaterial({ map: TEXTURES[28].texture, color: 'white' })
-                } else if (y > 5 && y < 55){
-                    if (x >= -5 && x <= 5 && z >= -5 && z <= 5){
-                        itemMaterial = new THREE.MeshLambertMaterial({ map: TEXTURES[16].texture, color: 'white' })
-                    } else {
-                        itemMaterial = new THREE.MeshLambertMaterial({ map: TEXTURES[27].texture, color: 'white' })
-                    }
-                } else {
-                    itemMaterial = new THREE.MeshLambertMaterial({ map: TEXTURES[31].texture, color: 'white' })
-                }
-            }
+            // if (path !== "./assets/templo_divino.json") {
+            //     if (item.pos.x === 5 && item.pos.z === 5){ //é tronco
+            //         itemMaterial = treeTextures.log;
+            //     } else { //é folha
+            //         //console.log(path);
+            //         itemMaterial = treeTextures.leaves;
+            //         itemMaterial.transparent = true;
+            //     }
+            // } else {
+            //     const {y, x, z} = item.pos;
+            //     if (y === 5){
+            //         itemMaterial = new THREE.MeshLambertMaterial({ map: TEXTURES[28].texture, color: 'white' })
+            //     } else if (y > 5 && y < 55){
+            //         if (x >= -5 && x <= 5 && z >= -5 && z <= 5){
+            //             itemMaterial = new THREE.MeshLambertMaterial({ map: TEXTURES[16].texture, color: 'white' })
+            //         } else {
+            //             itemMaterial = new THREE.MeshLambertMaterial({ map: TEXTURES[27].texture, color: 'white' })
+            //         }
+            //     } else {
+            //         itemMaterial = new THREE.MeshLambertMaterial({ map: TEXTURES[31].texture, color: 'white' })
+            //     }
+            // }
 
-            let newVoxel = new Voxel(item.pos, itemMaterial, false, true);
+            // let vectorPos = new THREE.Vector3(x, y, z);
+            // vectorPos = vectorPos.add(pos);
+            // itensPositions.push(vectorPos);
 
-            listOfVoxels.push(newVoxel);
-            newObject.add(newVoxel.getObject());
+
+
+
+            // let newVoxel = new Voxel(item.pos, itemMaterial, false, true);
+
+            // listOfVoxels.push(newVoxel);
+            // newObject.add(newVoxel.getObject());
         }
+
         await map.addAndPlaceObject(
             
             {
-                main: newObject,
-                voxels: listOfVoxels
+                mainPos: pos,
+                positions: dataJson.map(e=>e = new THREE.Vector3(e.pos.x, e.pos.y, e.pos.z)),
+                textures: itemTextures,
+                isTemple: isTemple
             },
             pos
         );
@@ -764,6 +852,28 @@ const fogControls = {
         }
     }
 }
+
+function splitTemple(array) { 
+    let splitted = [[],[],[],[]];
+
+    array.forEach(e => {
+        const {y, x, z} = e;
+        if (y === 5){
+            splitted[0].push(e);
+        } else if (y > 5 && y < 55){
+            if (x >= -5 && x <= 5 && z >= -5 && z <= 5){
+                splitted[1].push(e);
+            } else {
+                splitted[2].push(e);
+            }
+        } else {
+            splitted[3].push(e);
+        }
+    })
+
+    return splitted;
+} 
+
 
 // Contrói a GUI
 
@@ -847,32 +957,41 @@ async function loadTextures(){
     })
 }
 
+function getTempleTextures(){
+    return [
+        setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[28].texture, color: 'white' })),
+        setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[16].texture, color: 'white'  })),
+        setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[27].texture, color: 'white'  })),
+        setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[31].texture, color: 'white'  }))
+    ]
+}
+
 function getTreeTextures(treeName){
     if (treeName === "arvoreAlga"){
-        return {
-            leaves: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[21].texture, color: 'lawngreen' })),
-            log: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[21].texture, color: 'lawngreen'  }))
-        }
+        return [
+            setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[21].texture, color: 'lawngreen' })),
+            setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[21].texture, color: 'lawngreen'  }))
+        ]
     } else if (treeName === "arvoreFloresta"){
-        return {
-            leaves: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[24].texture, /*color: 'green'*/ color: 'white' })),
-            log: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[18].texture, /*color: 'khaki'*/ color: 'white' }))
-        }
+        return [
+            setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[24].texture, /*color: 'green'*/ color: 'white' })),
+            setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[18].texture, /*color: 'khaki'*/ color: 'white' }))
+        ]
     } else if (treeName === "arvoreMontanha"){
-        return {
-            leaves: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[20].texture, color: 'white'  })),
-            log: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[18].texture, color: '#473211'  }))
-        }
+        return [
+            setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[20].texture, color: 'white'  })),
+            setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[18].texture, color: '#473211'  }))
+        ]
     } else if (treeName === "arvoreNeve"){
-        return {
-            leaves: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[24].texture, color: 'forestgreen'  })),
-            log: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[18].texture, /*color: 'khaki'*/ color: '#964B00' }))
-        }
+        return [
+            setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[24].texture, color: 'forestgreen'  })),
+            setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[18].texture, /*color: 'khaki'*/ color: '#964B00' }))
+        ]
     } else if (treeName === "arvoreSavana"){
-        return {
-            leaves: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[21].texture, /*color: 'green'*/ color: 'lawngreen' })),
-            log: setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[18].texture, color: '#f2c785'}))
-        }
+        return [
+            setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[21].texture, /*color: 'green'*/ color: 'lawngreen' })),
+            setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[18].texture, color: '#f2c785'}))
+        ]
     }
 }
 
