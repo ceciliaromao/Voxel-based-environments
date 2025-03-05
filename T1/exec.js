@@ -14,6 +14,8 @@ const MAP_SIZE = 100;
 const MIN_FOG = 0.1;
 const MAX_FOG = 350;
 const FOG_COLOR = 'darkgray';
+const EFFECTS_VOL = 1.0;
+const MUSIC_VOL = 0.25;
 const VOXEL_COLORS = [
     'cornflowerblue',
     'khaki',
@@ -75,6 +77,17 @@ const TEXTURES_PATH = "./assets/textures/";
 const TEXTURES = [];
 let skyboxTexture;
 
+const SOUND_PATH = './assets/sound/';
+const SOUNDS = [
+    'bloop-noise.wav'
+]
+const MUSIC = [
+    'bg_music_1.mp3',
+    'bg_music_2.mp3',
+    'bg_music_3.mp3',
+    'bg_music_4.mp3',
+]
+
 //cena
 let scene;
 scene = new THREE.Scene();
@@ -113,6 +126,15 @@ let occupiedVoxels = new Map();
 let voxelsBBs = [];
 let collisionHelpers = [];
 
+//sons
+const listener = new THREE.AudioListener();
+const audioLoader = new THREE.AudioLoader();
+let removeSoundEffect;
+let backgroundMusic;
+let isMusicPlaying = false;
+let backgroundMusicBuffer = [];
+let removeEffectBuffer;
+
 //movimento
 let forwardPressed = false;
 let leftPressed = false;
@@ -145,6 +167,10 @@ const highlightMaterial = new THREE.MeshBasicMaterial({
 const highlightBox = new THREE.Mesh(new THREE.BoxGeometry(VX*1.02, VX*1.02, VX*1.02), highlightMaterial);
 highlightBox.visible = false;
 scene.add(highlightBox);
+let alpha = 1.0;
+const interval = 50;
+const fadeDuration = 2000;
+const steps = fadeDuration / interval;
 
 //fps
 let frameCount = 0;
@@ -884,11 +910,11 @@ function initControlInformation() {
     controlsInfo.add("Move Alt.:   ↑←↓→");
     controlsInfo.add("Jump:       Space");
     controlsInfo.add("Jump Alt.: RClick");
-    controlsInfo.add("Stop:           Q");
+    controlsInfo.add("Dis./Next Song: Q");
     controlsInfo.add("Coll. Help:     R");
     controlsInfo.add("Shadow Help:    H");
     controlsInfo.add("Câmera:         C");
-    controlsInfo.add("DisableFog:     F");
+    controlsInfo.add("Toggle Fog:     F");
     controlsInfo.show();
     let infobox = document.getElementById('controlsInfoBox')
     infobox.style.fontFamily = 'Courier New, monospace';
@@ -1153,7 +1179,7 @@ function getSelectedVoxel(){
     return;
 }
 
-function removeSelectedVoxel(voxelBox){
+async function removeSelectedVoxel(voxelBox){
     if (perspective !== "firstperson" || !voxelBox) return;
 
     const voxelCenter = voxelBox.getCenter(new THREE.Vector3());
@@ -1165,6 +1191,7 @@ function removeSelectedVoxel(voxelBox){
         const instancedMesh = map.instancedMeshes[meshId];
 
         
+        
         const lastIndex = instancedMesh.count - 1;
         const matrix = new THREE.Matrix4();
         instancedMesh.getMatrixAt(lastIndex, matrix);
@@ -1172,6 +1199,11 @@ function removeSelectedVoxel(voxelBox){
 
         instancedMesh.count--;
         instancedMesh.instanceMatrix.needsUpdate = true;
+
+        //console.log(instancedMesh);
+
+        await fadeOutVoxel(instancedMesh.material, voxelCenter);
+
         removeFromCollisionMap(voxelBox);
 
         console.log(`Voxel removed from mesh ${meshId} at position`, voxelPosKey);
@@ -1205,6 +1237,60 @@ function toggleCrosshair() {
     }
     crosshair.offsetHeight;
     
+}
+
+async function fadeOutVoxel(material, position) {
+    return new Promise((resolve) => {
+        let fadingMaterial = Array.isArray(material) ? material.map(mat => mat.clone()) : material.clone();
+
+        if (Array.isArray(fadingMaterial)) {
+            fadingMaterial.forEach(mat => {
+                mat.transparent = true;
+                mat.opacity = 1.0;
+            });
+        } else {
+            fadingMaterial.transparent = true;
+            fadingMaterial.opacity = 1.0;
+        }
+
+        let fadingOutVoxel = new THREE.Mesh(
+            new THREE.BoxGeometry(VX, VX, VX),
+            fadingMaterial
+        );
+
+        fadingOutVoxel.position.copy(position);
+        scene.add(fadingOutVoxel);
+
+        let currentStep = 0;
+
+        removeSoundEffect.play();
+
+        const fadeInterval = setInterval(() => {
+            let alpha = 1 - (currentStep / steps);
+
+            if (alpha <= 0) {
+
+                clearInterval(fadeInterval);
+                scene.remove(fadingOutVoxel);
+                fadingOutVoxel.geometry.dispose();
+                if (Array.isArray(fadingMaterial)) {
+                    fadingMaterial.forEach(mat => mat.dispose());
+                } else {
+                    fadingMaterial.dispose();
+                }
+            } else {
+                if (Array.isArray(fadingMaterial)) {
+                    fadingMaterial.forEach(mat => (mat.opacity = alpha));
+                } else {
+                    fadingMaterial.opacity = alpha;
+                }
+            }
+
+            currentStep++;
+        }, interval);
+
+        resolve(true);
+    })
 }
 
 
@@ -1334,6 +1420,57 @@ function changePerspective(){
 
 /* FIM FUNÇÕES DE MOVIMENTO e JOGADOR */
 
+/* FUNCOES DE SOM */
+
+async function loadAudio(url) {
+    return new Promise((resolve, reject) => {
+        audioLoader.load(url, buffer => resolve(buffer), undefined, err => reject(err));
+    });
+}
+
+async function initAudio(){
+    camera.add(listener);
+
+    removeEffectBuffer = await loadAudio(`${SOUND_PATH}${SOUNDS[0]}`);
+    removeSoundEffect = new THREE.Audio(listener);
+    removeSoundEffect.setBuffer(removeEffectBuffer);
+    removeSoundEffect.setVolume(EFFECTS_VOL);
+
+
+    backgroundMusic = new THREE.Audio(listener);
+    for (let bgMusic of MUSIC){
+        backgroundMusicBuffer.push(await loadAudio(`${SOUND_PATH}${bgMusic}`))
+    };
+
+    playRandomMusic();
+}
+
+function playRandomMusic() {
+    const randomSong = Math.floor(Math.random() * backgroundMusicBuffer.length);
+
+    backgroundMusic.setBuffer(backgroundMusicBuffer[randomSong])
+    backgroundMusic.setLoop(true);
+    backgroundMusic.setVolume(MUSIC_VOL);
+    backgroundMusic.play();
+    isMusicPlaying = true;
+
+    // backgroundMusic.onEnded = () => {
+    //     console.log("KBO");
+    //     playRandomMusic();
+    // };
+}
+
+function toggleMusic(){
+    if (isMusicPlaying){
+        backgroundMusic.stop();
+        isMusicPlaying = false;
+    } else {
+        playRandomMusic();
+    }
+}
+
+/* FIM DAS FUNCOES DE SOM */
+
 function loadSkyTexture(){
     const textureLoader = new THREE.TextureLoader();
     let textureEquirec = textureLoader.load( `${TEXTURES_PATH}${SKYBOX_TEXTURES[0]}.jpg` );
@@ -1402,7 +1539,7 @@ function initiateScene() {
             case 'ArrowDown': backwardPressed = true; break;
             case 'KeyD': rightPressed = true; break;
             case 'ArrowRight': rightPressed = true; break;
-            case 'KeyQ': stopAnyMovement(); break;
+            case 'KeyQ': /* stopAnyMovement() */ toggleMusic(); break;
             case 'KeyY': /* invert Y */toggleCrosshair(); break;
             case 'KeyC': changePerspective(); break;
             case 'KeyH': shadowHelper.visible = !shadowHelper.visible; break;
@@ -1434,7 +1571,7 @@ async function init() {
 
     map.create().then(() => {
         let y = map.collisionCoordinates.find(e => e.x === 0 && e.z === 0).y;
-        player.initPlayer().then(() => {
+        player.initPlayer().then(async () => {
             playerIntialPos = new THREE.Vector3(
                 0,
                 y*VX + 2*VX,
@@ -1463,6 +1600,8 @@ async function init() {
             toggleCrosshair();
 
             console.log(voxelPosMap);
+
+            await initAudio();
 
             animate();
         });
