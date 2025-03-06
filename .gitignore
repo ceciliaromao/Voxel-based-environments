@@ -4,4 +4,4 @@ package.json
 package-lock.json
 
 # Testes
-T1/output
+src/output
