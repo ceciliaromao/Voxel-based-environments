@@ -2,7 +2,6 @@
 #### Prof. Rodrigo L. S. Silva
 
 # Voxel-based environments
----
 
 ## [T1] 30 pontos
 Este trabalho consiste na criação de um protótipo de modelagem baseado em voxels (voxel-based modelling). Esse tipo de modelagem é muito utilizada em jogos baseados em voxels, sendo Minecraft o mais famoso exemplo. Nesta primeira etapa o foco será no desenvolvimento dos elementos básicos deste protótipo, incluindo a possibilidade de adicionar e remover voxels, carregar e salvar um grupo de voxels em arquivo etc.
