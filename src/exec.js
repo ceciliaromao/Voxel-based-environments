@@ -1,5 +1,4 @@
-//import * as THREE from 'three';
-import * as THREE from '/Voxel-based-environments/build/three.module.js';
+import * as THREE from 'three';
 import { OrbitControls } from '../build/jsm/controls/OrbitControls.js';
 import GUI from '../libs/util/dat.gui.module.js'
 import Voxel from '../src/voxel.js'
