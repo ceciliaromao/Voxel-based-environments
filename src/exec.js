@@ -3,7 +3,7 @@ import { OrbitControls } from '../build/jsm/controls/OrbitControls.js';
 import GUI from '../libs/util/dat.gui.module.js'
 import Voxel from '../src/voxel.js'
 import { initRendererWithAntialias } from '../src/renderer.js';
-import { Material, Vector2, Vector3 } from '../build/three.module.js';
+//import { Material, Vector2, Vector3 } from '../build/three.module.js';
 import { PointerLockControls } from '../build/jsm/controls/PointerLockControls.js';
 import { GLTFLoader } from '../build/jsm/loaders/GLTFLoader.js'
 import { InfoBox } from "../libs/util/util.js";
