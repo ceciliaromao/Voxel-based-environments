@@ -1,4 +1,5 @@
-import * as THREE from 'three';
+//import * as THREE from 'three';
+import * as THREE from '../build/three.module.js';
 import { OrbitControls } from '../build/jsm/controls/OrbitControls.js';
 import GUI from '../libs/util/dat.gui.module.js'
 import Voxel from '../src/voxel.js'
@@ -8,6 +9,7 @@ import { PointerLockControls } from '../build/jsm/controls/PointerLockControls.j
 import { GLTFLoader } from '../build/jsm/loaders/GLTFLoader.js'
 import { InfoBox } from "../libs/util/util.js";
 import { initRenderer } from "../libs/util/util.js";
+
 
 const VX = 10;
 const MAP_SIZE = 100;
