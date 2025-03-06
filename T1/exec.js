@@ -73,12 +73,11 @@ const SKYBOX_TEXTURES = [
     "panoramic-sea",
     "sky-box-city"
 ]
-
-const TEXTURES_PATH = "./assets/textures/";
+const TEXTURES_PATH = "T1/assets/textures/";
 const TEXTURES = [];
 let skyboxTexture;
 
-const SOUND_PATH = './assets/sound/';
+const SOUND_PATH = 'T1/assets/sound/';
 const SOUNDS = [
     'bloop-noise.wav'
 ]
@@ -711,7 +710,7 @@ const player = {
         return new Promise((resolve) => {
             // let loader = new GLTFLoader();
             // loader.load(
-            //     './assets/steve.glb',
+            //     'T1/assets/steve.glb',
             //     (gltf) => {
             //         let obj = gltf.scene;
             //         obj.traverse((child) => {
@@ -773,10 +772,10 @@ const player = {
  */
 function loadFile (path, pos) {
     return new Promise((resolve, reject) => {
-    path = `./assets/${path}`;
+    path = `T1/assets/${path}`;
     let isTemple = false;
     let itemTextures;
-    if (path !== "./assets/templo_divino.json") {
+    if (path !== "T1/assets/templo_divino.json") {
         itemTextures = getTreeTextures(path.split('/')[2].split('.')[0]);
     } else {
         isTemple = true;
@@ -798,7 +797,7 @@ function loadFile (path, pos) {
         for (let item of dataJson) {
             let itemMaterial = null;
 
-            // if (path !== "./assets/templo_divino.json") {
+            // if (path !== "T1/assets/templo_divino.json") {
             //     if (item.pos.x === 5 && item.pos.z === 5){ //é tronco
             //         itemMaterial = treeTextures.log;
             //     } else { //é folha
