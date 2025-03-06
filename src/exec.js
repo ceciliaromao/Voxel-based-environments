@@ -105,7 +105,7 @@ let shadowHelper;
 let templePosition;
 
 //camera e controles
-const orbitCamera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+const orbitCamera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 10000);
 orbitCamera.position.set(150, 225, 300);
 let orbit = new OrbitControls(orbitCamera, renderer.domElement);
 let perspective = "orbital";
@@ -392,6 +392,7 @@ const map = {
             //bloco de terra embaixo da grama
             voxelCoordinatesComplete.push([]);
 
+            let dirtMeshCoordinates = [];
             //completa os voxels internos
             voxelChunks.forEach((chunk, index) => {
                 chunk.forEach(e => {
@@ -414,7 +415,14 @@ const map = {
                         // helper.visible = false;
 
                         //COLISAO TESTE FIM
-                        voxelCoordinatesComplete[index].push(coord)
+
+                        if ((index !== 2 && index !== 3 && index !== 4) || y === e.y){
+                            voxelCoordinatesComplete[index].push(coord)
+                        } else {
+                            dirtMeshCoordinates.push(coord);
+                        }
+
+
                         if (y !== e.y){
                             this.collisionCoordinates.push({
                                 x: (e.x + 5)/VX,
@@ -504,6 +512,8 @@ const map = {
                 // scene.add(instaMesh);
                 await this.createInstancedMesh(voxelCoordinatesComplete[i], setMaterial(i));
             }
+
+            await this.createInstancedMesh(dirtMeshCoordinates, setMaterial(10))
 
             //criação da luz
             this.dirLight = new THREE.DirectionalLight('lightyellow', 1.5);
