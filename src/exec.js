@@ -1068,7 +1068,7 @@ function setCollisionHelpersVisible() {
 }
 
 function getNearbyVoxels() {
-    const radius = 5;
+    const radius = 2;
     const nearbyBoxes = [];
 
     const playerPos = player.pbb.getCenter(new THREE.Vector3());
@@ -1172,10 +1172,33 @@ function getSelectedVoxel() {
 
     const nearbyBoxes = getNearbyVoxels();
 
+    // if (nearbyBoxes.length){
+    //     for (let box of nearbyBoxes){
+    //         if (raycaster.ray.intersectsBox(box)){
+    //             return box;
+    //         }
+    //     }   
+    // }
+
+    // return;
+
+    let closestVoxel = null;
+    let closestDistance = Infinity; // Start with a very large distance.
+
     if (nearbyBoxes.length) {
         for (let box of nearbyBoxes) {
             if (raycaster.ray.intersectsBox(box)) {
-                return box;
+                // Get the intersection point
+                const intersectionPoint = raycaster.ray.intersectBox(box, new THREE.Vector3());
+
+                // Calculate the distance from the camera to the intersection point
+                const distance = raycaster.ray.origin.distanceTo(intersectionPoint);
+
+                // Check if the current box is closer than the previously closest one
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                    closestVoxel = box; // Update the closest voxel
+                }
             }
         }
     }
