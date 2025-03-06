@@ -69,10 +69,11 @@ const TEXTURES_NAMES = [
 ]
 
 const SKYBOX_TEXTURES = [
+    "field-with-clouds",
     "panoramic-sea",
-    "sky-box-city",
-    "field-with-clouds"
+    "sky-box-city"
 ]
+
 const TEXTURES_PATH = "./assets/textures/";
 const TEXTURES = [];
 let skyboxTexture;
@@ -121,6 +122,10 @@ const instructions = document.getElementById('instructions');
 instructions.style.display = 'none';
 blocker.style.display = 'none';
 
+//loadScreen
+let loadingManager;
+let canStartGame = false;
+
 //colisão
 let occupiedVoxels = new Map();
 let voxelsBBs = [];
@@ -128,7 +133,7 @@ let collisionHelpers = [];
 
 //sons
 const listener = new THREE.AudioListener();
-const audioLoader = new THREE.AudioLoader();
+const audioLoader = new THREE.AudioLoader(loadingManager);
 let removeSoundEffect;
 let backgroundMusic;
 let isMusicPlaying = false;
@@ -641,8 +646,6 @@ const map = {
                 }
             }))
 
-            console.log(input);
-
             let meshPositions = [];
 
             if (isTemple){
@@ -652,8 +655,7 @@ const map = {
                 meshPositions.push(positions.filter(e => e.x !== 5 || e.z !== 5));
                 meshPositions.push(positions.filter(e => e.x === 5 && e.z === 5));
             }
-            
-            console.log(meshPositions);
+        
 
             for (let i = 0; i < meshPositions.length; i++){
                 await this.createInstancedMesh(
@@ -967,7 +969,7 @@ function setTextureProperties(texture){
 
 async function loadTextures(){
     return new Promise(async (resolve) => {
-        let textureLoader = new THREE.TextureLoader();
+        let textureLoader = new THREE.TextureLoader(loadingManager);
         TEXTURES_NAMES.forEach(texName => {
             let newTexture = textureLoader.load(`${TEXTURES_PATH}${texName}.png`);
             TEXTURES.push({
@@ -1205,8 +1207,6 @@ async function removeSelectedVoxel(voxelBox){
         await fadeOutVoxel(instancedMesh.material, voxelCenter);
 
         removeFromCollisionMap(voxelBox);
-
-        console.log(`Voxel removed from mesh ${meshId} at position`, voxelPosKey);
     }
 
 }
@@ -1223,7 +1223,6 @@ function removeFromCollisionMap(voxelBox){
 
     if (occupiedVoxels.has(mapKey)) {
         occupiedVoxels.delete(mapKey);
-        console.log(`Removed voxel at ${mapKey} from the map.`);
     }
 
 }
@@ -1435,14 +1434,13 @@ async function initAudio(){
     removeSoundEffect = new THREE.Audio(listener);
     removeSoundEffect.setBuffer(removeEffectBuffer);
     removeSoundEffect.setVolume(EFFECTS_VOL);
+    isMusicPlaying = false;
 
 
     backgroundMusic = new THREE.Audio(listener);
     for (let bgMusic of MUSIC){
         backgroundMusicBuffer.push(await loadAudio(`${SOUND_PATH}${bgMusic}`))
     };
-
-    playRandomMusic();
 }
 
 function playRandomMusic() {
@@ -1469,10 +1467,67 @@ function toggleMusic(){
     }
 }
 
+async function initLoadingManager(){
+    loadingManager = new THREE.LoadingManager();
+
+    loadingManager.onStart = function (url, itemsLoaded, itemsTotal) {
+        console.log('Started loading: ' + url);
+        console.log('Items loaded: ' + itemsLoaded + '/' + itemsTotal);
+    };
+
+    loadingManager.onLoad = function () {
+        console.log('All items loaded');
+        const startButton = document.getElementById('start-button');
+        if (startButton) {
+            startButton.classList.add('enabled');
+            startButton.disabled = false;
+            startButton.style.backgroundColor = 'green';
+            startButton.style.cursor = 'pointer';
+            startButton.style.opacity = 1;
+        }
+
+        const loadingText = document.getElementById('loading-text');
+        if (loadingText) {
+            loadingText.innerText = "Assets loaded!"
+        }
+    };
+
+    loadingManager.onProgress = function (url, itemsLoaded, itemsTotal) {
+        console.log('Loading: ' + url);
+        const progress = (itemsLoaded / itemsTotal) * 100;
+        console.log(`Loading progress: ${progress.toFixed(2)}%`);
+
+        const progressBarFill = document.getElementById('progress-bar-fill');
+        if (progressBarFill){
+            progressBarFill.style.width = `${progress}%`
+        }
+
+        const progressText = document.getElementById('progress-text');
+        if (progressText){
+            progressText.innerText = `${Math.round(progress)}%`;
+        }
+    };
+
+    loadingManager.onError = function (url) {
+        console.log(`There was an error loading: ${url}`);
+    };
+
+    const startButton = document.getElementById('start-button');
+        if (startButton) {
+        startButton.addEventListener('click', () => {
+            const loadingScreen = document.getElementById('loading-screen');
+            if (loadingScreen) {
+                canStartGame = true;
+                loadingScreen.style.display = 'none';
+            }
+    });
+}
+}
+
 /* FIM DAS FUNCOES DE SOM */
 
 function loadSkyTexture(){
-    const textureLoader = new THREE.TextureLoader();
+    const textureLoader = new THREE.TextureLoader(loadingManager);
     let textureEquirec = textureLoader.load( `${TEXTURES_PATH}${SKYBOX_TEXTURES[0]}.jpg` );
     textureEquirec.mapping = THREE.EquirectangularReflectionMapping;
     textureEquirec.colorSpace = THREE.SRGBColorSpace;
@@ -1541,7 +1596,7 @@ function initiateScene() {
             case 'ArrowRight': rightPressed = true; break;
             case 'KeyQ': /* stopAnyMovement() */ toggleMusic(); break;
             case 'KeyY': /* invert Y */toggleCrosshair(); break;
-            case 'KeyC': changePerspective(); break;
+            case 'KeyC': if (canStartGame) changePerspective(); break;
             case 'KeyH': shadowHelper.visible = !shadowHelper.visible; break;
             case 'KeyR': setCollisionHelpersVisible(); break;
             case 'KeyF': fogControls.setFog(); break;
@@ -1598,9 +1653,6 @@ async function init() {
             fogControls.setFog(false);
 
             toggleCrosshair();
-
-            console.log(voxelPosMap);
-
             await initAudio();
 
             animate();
@@ -1608,4 +1660,5 @@ async function init() {
     });
 }
 
+initLoadingManager();
 init();
