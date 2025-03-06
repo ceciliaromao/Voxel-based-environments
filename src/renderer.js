@@ -1,4 +1,5 @@
-import * as THREE from '../../build/three.module.js';
+//import * as THREE from '../../build/three.module.js';
+import * as THREE from 'three'; 
 
 /**
  * Initialize a simple default renderer and binds it to the "webgl-output" dom
