@@ -1055,10 +1055,10 @@ async function createCollisionMap(coordinates) {
             ));
             let voxBb = new THREE.Box3().setFromObject(vox);
             voxelsBBs.push(voxBb);
-            let helper = new THREE.Box3Helper(voxBb, 'red');
-            collisionHelpers.push(helper);
-            scene.add(helper);
-            helper.visible = false;
+            // let helper = new THREE.Box3Helper(voxBb, 'red');
+            // collisionHelpers.push(helper);
+            // scene.add(helper);
+            // helper.visible = false;
         })
         resolve(true);
     })
