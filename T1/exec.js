@@ -153,10 +153,6 @@ let playerIntialPos = new THREE.Vector3();
 const clock = new THREE.Clock();
 
 //interação
-// let intersectionSphere = new THREE.Mesh(
-//    new THREE.SphereGeometry(.2, 30, 30, 0, Math.PI * 2, 0, Math.PI),
-//    new THREE.MeshPhongMaterial({color:"orange", shininess:"200"}));
-// scene.add(intersectionSphere);
 let voxelPosMap = new Map();
 let raycaster = new THREE.Raycaster();
 let mouse = new THREE.Vector2(0, 0);
@@ -419,6 +415,13 @@ const map = {
 
                         //COLISAO TESTE FIM
                         voxelCoordinatesComplete[index].push(coord)
+                        if (y !== e.y){
+                            this.collisionCoordinates.push({
+                                x: (e.x + 5)/VX,
+                                y: (y + 5)/VX,
+                                z: (e.z + 5)/VX,
+                            })
+                        }
                         y -= VX;
                     }
                     // voxelCoordinatesComplete[index].push({
@@ -1052,10 +1055,10 @@ async function createCollisionMap(coordinates){
         ));
         let voxBb = new THREE.Box3().setFromObject(vox);
         voxelsBBs.push(voxBb);
-        let helper = new THREE.Box3Helper( voxBb, 'red' );
-        collisionHelpers.push(helper);
-        scene.add( helper );
-        helper.visible = false;
+        // let helper = new THREE.Box3Helper( voxBb, 'red' );
+        // collisionHelpers.push(helper);
+        // scene.add( helper );
+        // helper.visible = false;
     })
     resolve(true);
 })
@@ -1066,7 +1069,7 @@ function setCollisionHelpersVisible(){
 }
 
 function getNearbyVoxels(){
-    const radius = 5; 
+    const radius = 2; 
     const nearbyBoxes = [];
 
     const playerPos = player.pbb.getCenter(new THREE.Vector3());
@@ -1170,15 +1173,38 @@ function getSelectedVoxel(){
 
     const nearbyBoxes = getNearbyVoxels();
 
-    if (nearbyBoxes.length){
-        for (let box of nearbyBoxes){
-            if (raycaster.ray.intersectsBox(box)){
-                return box;
+    // if (nearbyBoxes.length){
+    //     for (let box of nearbyBoxes){
+    //         if (raycaster.ray.intersectsBox(box)){
+    //             return box;
+    //         }
+    //     }   
+    // }
+
+    // return;
+
+    let closestVoxel = null;
+    let closestDistance = Infinity; // Start with a very large distance.
+
+    if (nearbyBoxes.length) {
+        for (let box of nearbyBoxes) {
+            if (raycaster.ray.intersectsBox(box)) {
+                // Get the intersection point
+                const intersectionPoint = raycaster.ray.intersectBox(box, new THREE.Vector3());
+
+                // Calculate the distance from the camera to the intersection point
+                const distance = raycaster.ray.origin.distanceTo(intersectionPoint);
+
+                // Check if the current box is closer than the previously closest one
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                    closestVoxel = box; // Update the closest voxel
+                }
             }
-        }   
+        }
     }
 
-    return;
+    return closestVoxel;
 }
 
 async function removeSelectedVoxel(voxelBox){
