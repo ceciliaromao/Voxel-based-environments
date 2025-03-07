@@ -8,6 +8,7 @@ import { PointerLockControls } from '../build/jsm/controls/PointerLockControls.j
 import { GLTFLoader } from '../build/jsm/loaders/GLTFLoader.js'
 import { InfoBox } from "../libs/util/util.js";
 import { initRenderer } from "../libs/util/util.js";
+import { CubeTextureLoaderSingleFile } from '../libs/util/cubeTextureLoaderSingleFile.js'
 
 
 const VX = 10;
@@ -70,9 +71,19 @@ const TEXTURES_NAMES = [
 ]
 
 const SKYBOX_TEXTURES = [
-    "field-with-clouds",
-    "panoramic-sea",
-    "sky-box-city"
+    "field-with-clouds", //0
+    "panoramic-sea", //1
+    "sky-box-city", //2
+    "cross_dune.png", //3
+    "cross_forest.png", //4
+    "cross_grass_mountains.png", //5
+    "cross_night.png", //6
+    "cross_obsidian.png", //7
+    "cross_sky.png", //8
+    "cross_sky_2.png", //9
+    "cross_sky_3.png", //10
+    "cross_snow.png", //11
+    "cross_space.png" //12
 ]
 const TEXTURES_PATH = "src/assets/textures/";
 const TEXTURES = [];
@@ -991,8 +1002,9 @@ async function loadTextures() {
             })
         })
 
-        skyboxTexture = textureLoader.load(`${TEXTURES_PATH}${SKYBOX_TEXTURES[0]}.jpg`);
-        skyboxTexture = THREE.EquirectangularReflectionMapping;
+        //skyboxTexture = textureLoader.load(`${TEXTURES_PATH}${SKYBOX_TEXTURES[0]}.jpg`);
+        // skyboxTexture = textureLoader.load(`${TEXTURES_PATH}${SKYBOX_TEXTURES[0]}`);
+        // skyboxTexture = THREE.EquirectangularReflectionMapping;
 
         resolve(true);
     })
@@ -1563,11 +1575,15 @@ async function initLoadingManager() {
 /* FIM DAS FUNCOES DE SOM */
 
 function loadSkyTexture() {
-    const textureLoader = new THREE.TextureLoader(loadingManager);
-    let textureEquirec = textureLoader.load(`${TEXTURES_PATH}${SKYBOX_TEXTURES[0]}.jpg`);
-    textureEquirec.mapping = THREE.EquirectangularReflectionMapping;
-    textureEquirec.colorSpace = THREE.SRGBColorSpace;
-    scene.background = textureEquirec;
+    // const textureLoader = new THREE.TextureLoader(loadingManager);
+    // //let textureEquirec = textureLoader.load(`${TEXTURES_PATH}${SKYBOX_TEXTURES[0]}.jpg`);
+    // let textureEquirec = textureLoader.load(`${TEXTURES_PATH}${SKYBOX_TEXTURES[0]}`);
+    // textureEquirec.mapping = THREE.EquirectangularReflectionMapping;
+    // textureEquirec.colorSpace = THREE.SRGBColorSpace;
+    // scene.background = textureEquirec;
+
+    let cubeMapTexture = new CubeTextureLoaderSingleFile().loadSingle(`${TEXTURES_PATH}${SKYBOX_TEXTURES[4]}`, 1);
+    scene.background = cubeMapTexture;
 }
 
 function updateDirLight() {
