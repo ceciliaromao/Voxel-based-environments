@@ -88,6 +88,7 @@ const SKYBOX_TEXTURES = [
 const TEXTURES_PATH = "src/assets/textures/";
 const TEXTURES = [];
 let skyboxTexture;
+let cubeTexture;
 
 const SOUND_PATH = 'src/assets/sound/';
 const SOUNDS = [
@@ -899,8 +900,10 @@ const fogControls = {
 
         if (this.fog) {
             this.enableFog();
+            scene.background = new THREE.Color(FOG_COLOR);
         } else {
             this.disableFog();
+            scene.background = cubeTexture;
         }
     }
 }
@@ -972,11 +975,12 @@ function setMaterial(index) {
     } else {
         let dirtVxSide = setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[13].texture }));
         let grassVxTop = setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[index].texture, color: VOXEL_COLORS[index] }));
+        let grassVxBot = setTextureProperties(new THREE.MeshLambertMaterial({ map: TEXTURES[10].texture }));
         return [
             dirtVxSide,
             dirtVxSide,
             grassVxTop,
-            dirtVxSide,
+            grassVxBot,
             dirtVxSide,
             dirtVxSide,
         ]
@@ -1367,8 +1371,8 @@ function animateCharacter(delta) {
 
 function jump() {
     if (isOnGround() && !isJumping) {
-        player.yvelocity = 0.9;
         isJumping = true;
+        player.yvelocity = 1;
     }
 }
 
@@ -1376,7 +1380,7 @@ function updatePlayer(delta) {
 
     if (!isOnGround()) {
         if (player.yvelocity > -5) {
-            player.yvelocity -= 0.03;
+            player.yvelocity -= 0.04;
         }
     } else {
         if (isJumping) {
@@ -1582,8 +1586,8 @@ function loadSkyTexture() {
     // textureEquirec.colorSpace = THREE.SRGBColorSpace;
     // scene.background = textureEquirec;
 
-    let cubeMapTexture = new CubeTextureLoaderSingleFile().loadSingle(`${TEXTURES_PATH}${SKYBOX_TEXTURES[4]}`, 1);
-    scene.background = cubeMapTexture;
+    cubeTexture = new CubeTextureLoaderSingleFile().loadSingle(`${TEXTURES_PATH}${SKYBOX_TEXTURES[4]}`, 1);
+    scene.background = cubeTexture;
 }
 
 function updateDirLight() {
@@ -1714,3 +1718,11 @@ async function init() {
 
 initLoadingManager();
 init();
+
+//fog apaga skybox OK!
+//alterar nome do AR
+//texturas
+//movimento NAO OK MAS OK
+//loadscreen ok
+//facicon.ico ok
+//nome da aplicacao: Voxy Realm
